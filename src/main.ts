@@ -394,6 +394,9 @@ async function submit() {
   const button = document.querySelector<HTMLButtonElement>("#submit")!;
   button.disabled = true;
   const result = await send({ op: "submit", answer: answer.value });
+  // Navigation replaces the lesson DOM while the core request can still be pending.
+  // Keep the new page (and any settings draft) intact when that response arrives.
+  if (!answer.isConnected) return;
   if (!result) {
     button.disabled = false;
     return;
