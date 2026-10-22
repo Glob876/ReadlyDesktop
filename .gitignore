@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-electron/
+native/target/
+release/
+test-results/
+playwright-report/
+*.log
