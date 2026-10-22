@@ -52,6 +52,7 @@ fn execute(state: &mut Saved, cmd: Command, path: &Path) -> Result<Value, String
             poem.text = poem
                 .text
                 .replace("\r\n", "\n")
+                .replace('\r', "\n")
                 .trim_matches('\n')
                 .to_owned();
             let blocks = stanzas(&poem.text);

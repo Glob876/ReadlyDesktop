@@ -55,6 +55,7 @@ pub struct Task {
     pub text: String,
 }
 pub fn stanzas(text: &str) -> Vec<Vec<String>> {
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
     let mut out = Vec::new();
     let mut current = Vec::new();
     for line in text.lines() {
@@ -181,5 +182,17 @@ mod tests {
             stanzas("\n a\r\n\r\n \n b\n\n"),
             vec![vec![" a"], vec![" b"]]
         );
+    }
+    #[test]
+    fn stanza_and_task_parsing_accepts_all_line_endings() {
+        let text = "a\nb\n\nc";
+        for ending in ["\r\n", "\r"] {
+            let converted = text.replace('\n', ending);
+            assert_eq!(stanzas(&converted), stanzas(text));
+            assert_eq!(
+                serde_json::to_value(tasks(&converted)).unwrap(),
+                serde_json::to_value(tasks(text)).unwrap()
+            );
+        }
     }
 }
