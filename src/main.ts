@@ -1,22 +1,8 @@
 import "./style.css";
 import type { Command, State, Settings, Poem } from "./types";
-const icons: Record<string, string> = {
-  book: '<path d="M4 4h6a3 3 0 0 1 3 3v14a4 4 0 0 0-4-2H4z"/><path d="M20 4h-4a3 3 0 0 0-3 3v14a4 4 0 0 1 4-2h3z"/>',
-  feather: '<path d="m5 19 8-8M5 19l1-6L16 3l5 5-10 10zM9 10l5 5"/>',
-  settings:
-    '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="16" cy="17" r="3"/>',
-  arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
-  check: '<path d="m5 12 4 4L19 6"/>',
-  eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12"/><circle cx="12" cy="12" r="3"/>',
-  help: '<circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 5m0 3h.01"/>',
-  back: '<path d="M20 12H4m6-6-6 6 6 6"/>',
-  repeat: '<path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/>',
-  close: '<path d="m6 6 12 12M6 18 18 6"/>',
-  minus: '<path d="M5 12h14"/>',
-  square: '<rect x="5" y="5" width="14" height="14" rx="1"/>',
-};
-const icon = (name: string) =>
-  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || ""}</svg>`;
+import { classics, authors, searchClassics } from "./library";
+import corpusLicense from "./data/PoetryCorpus-LICENSE.txt?raw";
+import { icon } from "./icons";
 const escape = (s: string) =>
   s.replace(
     /[&<>"']/g,
@@ -27,7 +13,10 @@ const escape = (s: string) =>
   );
 const root = document.querySelector<HTMLDivElement>("#app")!;
 let state: State;
-let page: "home" | "learn" | "settings" = "home";
+let page: "home" | "learn" | "settings" | "library" = "home";
+let libraryQuery = "";
+let libraryAuthor = "";
+let selectedPoemId = "";
 let settingsTab: "poem" | "checking" | "appearance" = "poem";
 let busy = false;
 let hinted = false;
@@ -89,16 +78,42 @@ function count(n: number, forms: [string, string, string]) {
 }
 function render() {
   appearance(page === "settings" ? draft : state.settings);
-  root.innerHTML = `<div class="window"><header class="titlebar"><div class="brand">${icon("book")}<span>Readly</span></div><span class="window-caption">Стихотворения</span>${window.readly.desktop ? `<div class="window-controls"><button data-window="minimize" aria-label="Свернуть">${icon("minus")}</button><button data-window="maximize" aria-label="Развернуть">${icon("square")}</button><button data-window="close" aria-label="Закрыть">${icon("close")}</button></div>` : '<span class="preview-label">Предпросмотр</span>'}</header>
+  root.innerHTML = `<div class="window"><header class="titlebar"><div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>Readly</span></div><span class="window-caption">Стихотворения</span>${window.readly.desktop ? `<div class="window-controls"><button data-window="minimize" aria-label="Свернуть">${icon("minus")}</button><button data-window="maximize" aria-label="Развернуть">${icon("square")}</button><button data-window="close" aria-label="Закрыть">${icon("close")}</button></div>` : '<span class="preview-label">Предпросмотр</span>'}</header>
     <div class="workspace"><aside class="sidebar"><div class="nav-label">БИБЛИОТЕКА</div><nav aria-label="Основная навигация"><button data-page="home" class="nav-item ${page === "home" ? "active" : ""}">${icon("book")}<span>Стихотворение</span></button><button data-page="learn" class="nav-item ${page === "learn" ? "active" : ""}">${icon("feather")}<span>Занятие</span>${state.started && state.position < state.tasks.length ? '<span class="nav-dot"></span>' : ""}</button></nav>
+    <button data-page="library" class="nav-item ${page === "library" ? "active" : ""}">${icon("library")}<span>Классика</span></button>
     <div class="sidebar-progress"><div class="progress-caption"><span>Выучено строф</span><span>${learned()} / ${state.stanzas.length}</span></div><div class="progress-track"><div style="width:${state.stanzas.length ? (learned() / state.stanzas.length) * 100 : 0}%"></div></div><p>${state.position === state.tasks.length ? "Занятие завершено" : state.started ? "Прогресс сохранён" : "Занятие ещё не начато"}</p></div>
     <div class="sidebar-bottom"><button data-page="settings" class="nav-item ${page === "settings" ? "active" : ""}">${icon("settings")}Настройки</button><button id="help" class="nav-item">${icon("help")}Как заниматься</button><div class="local-note"><span class="status-dot"></span>Локально на компьютере</div></div></aside>
-    <main id="main"><div id="error" class="error-banner" role="alert" hidden></div>${page === "home" ? home() : page === "learn" ? lesson() : settings()}</main></div><footer class="statusbar"><span>${count(state.stanzas.length, ["строфа", "строфы", "строф"])} <span class="dot-separator">·</span> ${count(state.stanzas.flat().length, ["строка", "строки", "строк"])}</span><span>${page === "learn" ? "Ctrl + Enter — проверить" : "Readly · 0.1.0"}</span></footer></div><dialog id="dialog"></dialog>`;
+    <main id="main"><div id="error" class="error-banner" role="alert" hidden></div>${page === "home" ? home() : page === "learn" ? lesson() : page === "library" ? library() : settings()}</main></div><footer class="statusbar"><span>${count(state.stanzas.length, ["строфа", "строфы", "строф"])} <span class="dot-separator">·</span> ${count(state.stanzas.flat().length, ["строка", "строки", "строк"])}</span><span>${page === "learn" ? "Ctrl + Enter — проверить" : "Readly · 0.1.0"}</span></footer></div><dialog id="dialog"></dialog>`;
   bind();
 }
 function home() {
   const complete = state.position >= state.tasks.length;
-  return `<div class="page home-page"><div class="page-topline"><span class="eyebrow">СТИХОТВОРЕНИЕ</span><button class="text-button" id="edit">${icon("settings")}Изменить текст</button></div><div class="poem-heading"><h1>${escape(state.poem.title)}</h1><p>${escape(state.poem.author || "Автор не указан")}</p></div><div class="home-columns"><article class="poem" aria-label="Текст стихотворения">${state.stanzas.map((s, i) => `<div class="poem-stanza"><span class="stanza-number">${String(i + 1).padStart(2, "0")}</span><p>${s.map(escape).join("<br>")}</p></div>`).join("")}</article><aside class="study-card"><div class="card-icon">${icon("feather")}</div><h2>${complete ? "Стихотворение выучено" : state.started ? "Продолжить занятие" : "Начать занятие"}</h2><p>${complete ? "Все строки и строфы пройдены. Можно повторить стихотворение с начала." : "Сначала перепишите текст, затем воспроизведите его по памяти."}</p><div class="study-facts"><div><span>Строфы</span><strong>${state.stanzas.length}</strong></div><div><span>Строки</span><strong>${state.stanzas.flat().length}</strong></div></div>${state.started ? `<div class="progress-caption"><span>Пройдено шагов</span><span>${state.position} / ${state.tasks.length}</span></div><div class="progress-track"><div style="width:${percent()}%"></div></div>` : ""}<button id="begin" class="primary wide">${complete ? "Повторить с начала" : state.started ? "Продолжить" : "Начать учить"}${icon("arrow")}</button><div class="card-footnote">Можно остановиться в любой момент</div></aside></div></div>`;
+  return `<div class="page home-page"><div class="page-topline"><span class="eyebrow">СТИХОТВОРЕНИЕ</span><button class="text-button" id="edit">${icon("edit")}Изменить текст</button></div><div class="poem-heading"><h1>${escape(state.poem.title)}</h1><p>${escape(state.poem.author || "Автор не указан")}</p></div><div class="home-columns"><article class="poem" aria-label="Текст стихотворения">${state.stanzas.map((s, i) => `<div class="poem-stanza"><span class="stanza-number">${String(i + 1).padStart(2, "0")}</span><p>${s.map(escape).join("<br>")}</p></div>`).join("")}</article><aside class="study-card"><div class="card-icon">${icon("feather")}</div><h2>${complete ? "Стихотворение выучено" : state.started ? "Продолжить занятие" : "Начать занятие"}</h2><p>${complete ? "Все строки и строфы пройдены. Можно повторить стихотворение с начала." : "Сначала перепишите текст, затем воспроизведите его по памяти."}</p><div class="study-facts"><div><span>Строфы</span><strong>${state.stanzas.length}</strong></div><div><span>Строки</span><strong>${state.stanzas.flat().length}</strong></div></div>${state.started ? `<div class="progress-caption"><span>Пройдено шагов</span><span>${state.position} / ${state.tasks.length}</span></div><div class="progress-track"><div style="width:${percent()}%"></div></div>` : ""}<button id="begin" class="primary wide">${complete ? "Повторить с начала" : state.started ? "Продолжить" : "Начать учить"}${icon("arrow")}</button><div class="card-footnote">Можно остановиться в любой момент</div></aside></div></div>`;
+}
+function library() {
+  return `<div class="page library-page"><span class="eyebrow">ЛОКАЛЬНАЯ БИБЛИОТЕКА</span><h1>Русская классика</h1><p class="library-intro">${count(classics.length, ["стихотворение", "стихотворения", "стихотворений"])} · ${authors.length} авторов · доступны без интернета</p>
+    <div class="library-filters"><label>Поиск<input id="library-search" type="search" placeholder="Автор, название или строка…" value="${escape(libraryQuery)}"></label><label>Автор<select id="library-author" aria-label="Автор"><option value="">Все авторы</option>${authors.map((author) => `<option ${libraryAuthor === author ? "selected" : ""}>${escape(author)}</option>`).join("")}</select></label></div>
+    <div class="library-layout"><section aria-label="Стихотворения библиотеки"><p id="library-count" class="muted" role="status"></p><div id="library-results" class="library-results"></div></section><section id="library-preview" class="library-preview" aria-label="Просмотр стихотворения"></section></div>
+    <details class="library-credits"><summary>Об источнике библиотеки</summary><p>Подборка восьми русских поэтов XVIII–XIX веков из PoetryCorpus Ильи Гусева, раздел klassika. Сохранены строки и строфы исходного набора; варианты текста и орфографии могут отличаться от других изданий. Длинные произведения и записи с явными примечаниями исключены автоматически.</p><p>Подготовка подборки: Readly. Источник набора и исходное название указаны у каждого текста. Лицензия репозитория PoetryCorpus — Apache License 2.0.</p><pre>${escape(corpusLicense)}</pre></details></div>`;
+}
+function updateLibrary() {
+  const results = searchClassics(libraryQuery, libraryAuthor);
+  if (!results.some((poem) => poem.id === selectedPoemId)) selectedPoemId = results[0]?.id || "";
+  document.querySelector("#library-count")!.textContent = `Найдено: ${results.length}`;
+  const list = document.querySelector("#library-results")!;
+  list.innerHTML = results.length ? results.map((poem) => `<button class="library-item ${selectedPoemId === poem.id ? "selected" : ""}" data-poem-id="${poem.id}" aria-pressed="${selectedPoemId === poem.id}"><strong>${escape(poem.title)}</strong><span>${escape(poem.author)}</span><small>${poem.text.split("\n").filter((line) => line.trim()).length} строк${poem.year ? ` · ${escape(poem.year)}` : ""}</small></button>`).join("") : '<p class="library-no-results">Ничего не найдено. Попробуйте другую строку или выберите всех авторов.</p>';
+  list.querySelectorAll<HTMLButtonElement>("[data-poem-id]").forEach((button) => {
+    button.onclick = () => { selectedPoemId = button.dataset.poemId!; updateLibrary(); document.querySelector<HTMLButtonElement>(`[data-poem-id="${selectedPoemId}"]`)?.focus(); };
+  });
+  const poem = results.find((entry) => entry.id === selectedPoemId);
+  const preview = document.querySelector("#library-preview")!;
+  preview.innerHTML = poem ? `<div class="library-preview-heading"><span class="eyebrow">ТЕКСТ ДЛЯ ЗАУЧИВАНИЯ</span><h2>${escape(poem.title)}</h2><p class="muted">${escape(poem.author)}</p><button id="choose-poem" class="primary">Выбрать для занятия${icon("arrow")}</button></div><p class="poem-text library-text">${escape(poem.text)}</p><p class="library-source">Исходное название: ${escape(poem.sourceTitle)}<br><a href="${escape(poem.source)}" target="_blank" rel="noopener noreferrer">Источник: PoetryCorpus · klassika</a></p>` : '<p class="muted">Здесь появится текст выбранного стихотворения.</p>';
+  document.querySelector("#choose-poem")?.addEventListener("click", async () => {
+    if (!poem || busy) return;
+    if (state.poem.title === poem.title && state.poem.author === poem.author && state.poem.text === poem.text) { navigate("home"); return; }
+    if (state.position > 0 && !(await confirmAction("Заменить стихотворение?", "Прогресс текущего стихотворения будет сброшен.", "Выбрать стихотворение"))) return;
+    if (await send({ op: "savePoem", poem: { title: poem.title, author: poem.author, text: poem.text } })) navigate("home");
+  });
 }
 const names = {
   line: "Строка",
@@ -193,6 +208,17 @@ async function confirmAction(
   );
 }
 function bind() {
+  if (page === "library") {
+    updateLibrary();
+    document.querySelector<HTMLInputElement>("#library-search")!.oninput = (event) => {
+      libraryQuery = (event.target as HTMLInputElement).value;
+      updateLibrary();
+    };
+    document.querySelector<HTMLSelectElement>("#library-author")!.onchange = (event) => {
+      libraryAuthor = (event.target as HTMLSelectElement).value;
+      updateLibrary();
+    };
+  }
   for (const [name, key] of [
     ["title", "title"],
     ["author", "author"],

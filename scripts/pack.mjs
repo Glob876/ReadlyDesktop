@@ -20,11 +20,14 @@ await cp("dist", path.join(appDir, "dist"), { recursive: true });
 await cp("dist-electron", path.join(appDir, "dist-electron"), {
   recursive: true,
 });
+await cp("assets", path.join(appDir, "assets"), { recursive: true });
+await cp("src/assets/icons/LICENSE", path.join(target, "Lucide-LICENSE.txt"));
 await cp(
   "native/target/release/readly-core",
   path.join(target, "resources/readly-core"),
 );
 await cp("assets/icon.svg", path.join(target, "readly.svg"));
+await cp("assets/icon.png", path.join(target, "readly.png"));
 await cp("README.md", path.join(target, "README.md"));
 await cp("native/Cargo.lock", path.join(target, "Cargo.lock"));
 await cp("package-lock.json", path.join(target, "package-lock.json"));
@@ -42,4 +45,9 @@ await writeFile(
   '#!/bin/sh\ncd -- "$(dirname -- "$0")" || exit 1\nexec ./readly "$@"\n',
 );
 await chmod(path.join(target, "Readly"), 0o755);
+// Absolute paths let the launcher work outside the application's directory.
+await writeFile(
+  path.join(target, "readly-desktop.desktop"),
+  `[Desktop Entry]\nType=Application\nName=Readly\nComment=Заучивание стихотворений\nExec="${path.join(target, "Readly")}" %U\nIcon=${path.join(target, "readly.png")}\nTerminal=false\nCategories=Education;\nStartupWMClass=readly-desktop\n`,
+);
 console.log(`Готово: ${target}/Readly`);

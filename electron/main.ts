@@ -1,12 +1,27 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, nativeImage, shell } from "electron";
 import { spawn, ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
 import path from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import type { Command, Result } from "../src/types";
 let win: BrowserWindow | null = null;
 let core: ChildProcessWithoutNullStreams;
 let serial = 0;
 let failure = "";
+if (process.platform === "linux") app.setDesktopName("readly-desktop.desktop");
+
+async function registerDesktopIcon() {
+  if (process.platform !== "linux") return;
+  const directory = path.join(process.env.XDG_DATA_HOME || path.join(homedir(), ".local/share"), "applications");
+  const quote = (value: string) => '"' + value.replace(/[\\"\x60$]/g, "\\$&").replace(/%/g, "%%") + '"';
+  const command = app.isPackaged
+    ? quote(process.execPath)
+    : `${quote(process.execPath)} ${quote(app.getAppPath())}`;
+  await mkdir(directory, { recursive: true });
+  await writeFile(path.join(directory, "readly-desktop.desktop"),
+    `[Desktop Entry]\nType=Application\nName=Readly\nComment=Заучивание стихотворений\nExec=${command}\nIcon=${path.join(app.getAppPath(), "assets/icon.png")}\nTerminal=false\nCategories=Education;\nStartupWMClass=readly-desktop\n`);
+}
 const pending = new Map<
   number,
   {
@@ -44,6 +59,7 @@ function createWindow() {
     minWidth: 880,
     minHeight: 640,
     title: "Readly",
+    icon: path.join(app.getAppPath(), "assets/icon.png"),
     frame: false,
     transparent: true,
     backgroundColor: "#00000000",
@@ -68,7 +84,11 @@ function createWindow() {
 }
 if (process.env.READLY_DATA_DIR)
   app.setPath("userData", path.resolve(process.env.READLY_DATA_DIR));
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Wayland resolves taskbar icons through the desktop entry, not window.icon.
+  await registerDesktopIcon().catch((error) => console.warn("Не удалось зарегистрировать значок Readly:", error));
+  if (process.platform === "darwin")
+    app.dock?.setIcon(nativeImage.createFromPath(path.join(app.getAppPath(), "assets/icon.png")));
   const binary = app.isPackaged
     ? path.join(
         process.resourcesPath,

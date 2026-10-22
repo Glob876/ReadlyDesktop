@@ -7,7 +7,7 @@ test("desktop: poem editing, full lesson, hints, appearance and persistence", as
   const start = () =>
     electron.launch({
       args: ["."],
-      env: { ...process.env, READLY_DATA_DIR: dir },
+      env: { ...process.env, XDG_DATA_HOME: path.join(dir, "xdg"), READLY_DATA_DIR: dir },
     });
   let app = await start();
   try {
