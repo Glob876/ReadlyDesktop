@@ -1,14 +1,14 @@
-import { app, BrowserWindow, ipcMain, nativeImage, shell } from "electron";
-import { spawn, ChildProcessWithoutNullStreams } from "node:child_process";
-import { createInterface } from "node:readline";
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, screen, shell } from "electron";
 import path from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
+import { readFileSync, writeFileSync, renameSync } from "node:fs";
+import { CoreConnection } from "./core";
+import { libraryExportFile, libraryImportCommand, MAX_TEXT_BYTES, readImportFile, textPoem, validateCommand } from "./files";
 import type { Command, Result } from "../src/types";
 let win: BrowserWindow | null = null;
-let core: ChildProcessWithoutNullStreams;
-let serial = 0;
-let failure = "";
+let core: CoreConnection;
 if (process.platform === "linux") app.setDesktopName("readly-desktop.desktop");
 
 async function registerDesktopIcon() {
@@ -22,40 +22,22 @@ async function registerDesktopIcon() {
   await writeFile(path.join(directory, "readly-desktop.desktop"),
     `[Desktop Entry]\nType=Application\nName=Readly\nComment=Заучивание стихотворений\nExec=${command}\nIcon=${path.join(app.getAppPath(), "assets/icon.png")}\nTerminal=false\nCategories=Education;\nStartupWMClass=readly-desktop\n`);
 }
-const pending = new Map<
-  number,
-  {
-    resolve: (v: Result) => void;
-    reject: (e: Error) => void;
-    timer: NodeJS.Timeout;
-  }
->();
-function rejectAll(message: string) {
-  failure = message;
-  for (const p of pending.values()) {
-    clearTimeout(p.timer);
-    p.reject(new Error(message));
-  }
-  pending.clear();
-}
-function request(command: Command): Promise<Result> {
-  if (failure) return Promise.reject(new Error(failure));
-  return new Promise((resolve, reject) => {
-    const id = ++serial;
-    const timer = setTimeout(() => {
-      pending.delete(id);
-      reject(new Error("Превышено время ожидания ядра."));
-    }, 15000);
-    pending.set(id, { resolve, reject, timer });
-    core.stdin.write(JSON.stringify({ ...command, id }) + "\n", (error) => {
-      if (error) rejectAll("Нет связи с ядром: " + error.message);
-    });
-  });
+interface WindowState { x?: number; y?: number; width: number; height: number; maximized?: boolean }
+function loadWindowState(): WindowState {
+  const fallback = { width: 1260, height: 850 };
+  try {
+    const state = JSON.parse(readFileSync(path.join(app.getPath("userData"), "window.json"), "utf8")) as WindowState;
+    if (![state.width, state.height, state.x, state.y].every(Number.isFinite) || state.width < 880 || state.height < 640) return fallback;
+    const visible = screen.getAllDisplays().some(({ workArea: area }) =>
+      Math.min(state.x! + state.width, area.x + area.width) - Math.max(state.x!, area.x) >= 100 &&
+      Math.min(state.y! + state.height, area.y + area.height) - Math.max(state.y!, area.y) >= 100);
+    return visible ? state : fallback;
+  } catch { return fallback; }
 }
 function createWindow() {
+  const savedWindow = loadWindowState();
   win = new BrowserWindow({
-    width: 1260,
-    height: 850,
+    ...savedWindow,
     minWidth: 880,
     minHeight: 640,
     title: "Readly",
@@ -69,6 +51,15 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+  if (savedWindow.maximized) win.maximize();
+  win.on("close", () => {
+    if (!win) return;
+    const file = path.join(app.getPath("userData"), "window.json");
+    try {
+      writeFileSync(file + ".tmp", JSON.stringify({ ...win.getNormalBounds(), maximized: win.isMaximized() }));
+      renameSync(file + ".tmp", file);
+    } catch (error) { console.warn("Не удалось сохранить положение окна:", error); }
   });
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https://")) void shell.openExternal(url);
@@ -84,7 +75,14 @@ function createWindow() {
 }
 if (process.env.READLY_DATA_DIR)
   app.setPath("userData", path.resolve(process.env.READLY_DATA_DIR));
-app.whenReady().then(async () => {
+const ownsProfile = app.requestSingleInstanceLock();
+if (!ownsProfile) app.quit();
+app.on("second-instance", () => {
+  if (win?.isMinimized()) win.restore();
+  win?.show();
+  win?.focus();
+});
+if (ownsProfile) app.whenReady().then(async () => {
   // Wayland resolves taskbar icons through the desktop entry, not window.icon.
   await registerDesktopIcon().catch((error) => console.warn("Не удалось зарегистрировать значок Readly:", error));
   if (process.platform === "darwin")
@@ -99,45 +97,60 @@ app.whenReady().then(async () => {
         "native/target/release/readly-core" +
           (process.platform === "win32" ? ".exe" : ""),
       );
-  core = spawn(binary, [path.join(app.getPath("userData"), "progress.json")], {
-    stdio: "pipe",
-    windowsHide: true,
-  });
-  let diagnostics = "";
-  core.stderr.on("data", (b) => {
-    diagnostics = (diagnostics + String(b)).slice(-4000);
-  });
-  core.on("error", (e) => rejectAll("Не удалось запустить Rust: " + e.message));
-  core.on("exit", () =>
-    rejectAll(
-      diagnostics || "Ядро завершило работу. Перезапустите приложение.",
-    ),
-  );
-  core.stdin.on("error", () =>
-    rejectAll("Нет связи с ядром. Перезапустите приложение."),
-  );
-  createInterface({ input: core.stdout }).on("line", (line) => {
-    try {
-      const msg = JSON.parse(line);
-      const p = pending.get(msg.id);
-      if (!p) return;
-      clearTimeout(p.timer);
-      pending.delete(msg.id);
-      if (msg.error) p.reject(new Error(msg.error));
-      else p.resolve(msg.result);
-    } catch {
-      rejectAll("Некорректный ответ ядра.");
-    }
-  });
-  ipcMain.handle("readly:request", (event, command: Command) => {
-    if (
-      event.sender !== win?.webContents ||
-      event.senderFrame !== win.webContents.mainFrame
-    )
+  core = new CoreConnection(binary, [path.join(app.getPath("userData"), "progress.json")]);
+  const assertSender = (event: Electron.IpcMainInvokeEvent) => {
+    if (event.sender !== win?.webContents || event.senderFrame !== win.webContents.mainFrame)
       throw new Error("Недопустимый отправитель");
-    if (!command || JSON.stringify(command).length > 150_000)
-      throw new Error("Некорректный запрос");
-    return request(command);
+  };
+  ipcMain.handle("readly:request", (event, command: Command) => {
+    assertSender(event);
+    validateCommand(command);
+    return core.request(command);
+  });
+  ipcMain.handle("readly:reconnect", (event) => {
+    assertSender(event);
+    return core.reconnect();
+  });
+  ipcMain.handle("readly:import-text", async (event) => {
+    assertSender(event);
+    const selected = await dialog.showOpenDialog(win!, {
+      title: "Импорт стихотворения", properties: ["openFile"],
+      filters: [{ name: "Текст UTF-8", extensions: ["txt"] }],
+    });
+    if (selected.canceled || !selected.filePaths[0]) return null;
+    const file = selected.filePaths[0];
+    return textPoem(file, await readImportFile(file, MAX_TEXT_BYTES + 3));
+  });
+  ipcMain.handle("readly:export-library", async (event) => {
+    assertSender(event);
+    const selected = await dialog.showSaveDialog(win!, {
+      title: "Экспорт библиотеки с прогрессом", defaultPath: "readly-library.json",
+      filters: [{ name: "Библиотека Readly", extensions: ["json"] }],
+    });
+    if (selected.canceled || !selected.filePath) return false;
+    const result = await core.request({ op: "exportLibrary" } as Command) as Result & { snapshot?: unknown };
+    if (!result.snapshot) throw new Error("Ядро не вернуло библиотеку.");
+    const temporary = selected.filePath + "." + randomUUID() + ".tmp";
+    try {
+      await writeFile(temporary, libraryExportFile(result.snapshot), { flag: "wx", mode: 0o600 });
+      await rename(temporary, selected.filePath);
+    } finally { await rm(temporary, { force: true }); }
+    return true;
+  });
+  ipcMain.handle("readly:import-library", async (event) => {
+    assertSender(event);
+    const selected = await dialog.showOpenDialog(win!, {
+      title: "Импорт библиотеки", properties: ["openFile"],
+      filters: [{ name: "Библиотека Readly", extensions: ["json"] }],
+    });
+    if (selected.canceled || !selected.filePaths[0]) return null;
+    let data: unknown;
+    try { data = JSON.parse(await readImportFile(selected.filePaths[0])); }
+    catch (error) {
+      if (error instanceof SyntaxError) throw new Error("Файл не содержит корректный JSON.");
+      throw error;
+    }
+    return core.request(libraryImportCommand(data));
   });
   ipcMain.on("readly:window", (event, action) => {
     if (event.sender !== win?.webContents) return;
@@ -155,5 +168,5 @@ app.whenReady().then(async () => {
 });
 app.on("window-all-closed", () => app.quit());
 app.on("before-quit", () => {
-  core?.kill();
+  core?.close();
 });

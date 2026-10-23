@@ -10,7 +10,7 @@
     "build": "npm run check && cargo build --release --manifest-path native/Cargo.toml && vite build && tsc -p electron/tsconfig.json",
     "check": "tsc --noEmit && tsc -p electron/tsconfig.json --noEmit",
     "start": "electron .",
-    "test": "cargo test --manifest-path native/Cargo.toml && node --test tests/*.test.mjs",
+    "test": "cargo test --manifest-path native/Cargo.toml && cargo build --release --manifest-path native/Cargo.toml && tsc -p electron/tsconfig.json && node --test tests/*.test.mjs",
     "test:ui": "playwright test",
     "pack": "npm run build && node scripts/pack.mjs"
   },

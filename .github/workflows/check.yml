@@ -1,0 +1,36 @@
+name: Checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+      - run: npm ci
+      - run: cargo fmt --manifest-path native/Cargo.toml --check
+      - run: cargo clippy --manifest-path native/Cargo.toml --all-targets -- -D warnings
+      - run: npm run build
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npm run test:ui
+        env:
+          ELECTRON_DISABLE_SANDBOX: "1"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: test-results/
+          if-no-files-found: ignore
