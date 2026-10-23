@@ -6,7 +6,7 @@ test("desktop: poem editing, full lesson, hints, appearance and persistence", as
   const dir = await mkdtemp(path.join(tmpdir(), "readly-ui-"));
   const start = () =>
     electron.launch({
-      args: ["."],
+      args: [".", "--ozone-platform=x11"],
       env: { ...process.env, XDG_DATA_HOME: path.join(dir, "xdg"), READLY_DATA_DIR: dir },
     });
   let app = await start();
@@ -43,7 +43,7 @@ test("desktop: poem editing, full lesson, hints, appearance and persistence", as
     ).toBeVisible();
     await expect(page.locator(".source-text")).toHaveCount(0);
     await page.getByRole("button", { name: "Показать подсказку" }).click();
-    await expect(page.locator(".source-text")).toHaveText("Мороз и солнце!");
+    await expect(page.locator(".source-text")).toHaveText("Мороз …");
     await page.locator("#answer").fill("Мороз и солнце!");
     await page.locator("#submit").click();
     await expect(page.getByText("Шаг 2 из 14", { exact: true })).toBeVisible();
@@ -58,7 +58,7 @@ test("desktop: poem editing, full lesson, hints, appearance and persistence", as
         await expect(page.locator("#answer")).toHaveValue("");
     }
     await expect(
-      page.getByRole("heading", { name: "Стихотворение выучено" }),
+      page.getByRole("heading", { name: "Занятие завершено" }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Настройки", exact: true }).click();
     await page.getByRole("tab", { name: "Оформление" }).click();
@@ -81,7 +81,7 @@ test("desktop: poem editing, full lesson, hints, appearance and persistence", as
     ).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(
-      page.getByText("Занятие завершено", { exact: true }),
+      page.getByRole("heading", {name: "Занятие завершено", exact: true}),
     ).toBeVisible();
   } finally {
     await app.close();

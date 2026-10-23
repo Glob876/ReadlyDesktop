@@ -3,9 +3,9 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-test("offline classics: search, author filter, preview, safe replacement and persistence", async () => {
+test("offline classics: search, author filter, preview, independent progress and persistence", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "readly-library-"));
-  const start = () => electron.launch({ args: ["."], env: { ...process.env, XDG_DATA_HOME: path.join(dir, "xdg"), READLY_DATA_DIR: dir } });
+  const start = () => electron.launch({ args: [".", "--ozone-platform=x11"], env: { ...process.env, XDG_DATA_HOME: path.join(dir, "xdg"), READLY_DATA_DIR: dir } });
   let app = await start();
   try {
     let page = await app.firstWindow();
@@ -31,13 +31,10 @@ test("offline classics: search, author filter, preview, safe replacement and per
     await page.getByLabel("Автор", { exact: true }).selectOption("");
     await page.getByRole("searchbox").fill("мороз и солнце");
     await page.getByRole("button", { name: "Выбрать для занятия" }).click();
-    await page.getByRole("button", { name: "Отмена", exact: true }).click();
+    await expect(page.getByRole("dialog")).not.toBeVisible();
     let saved = await page.evaluate(() => window.readly.request({ op: "load" }));
-    expect(saved.state.poem.title).toBe("Парус");
-    expect(saved.state.position).toBe(1);
+    expect(saved.state.library.find(p => p.title === "Парус")?.position).toBe(1);
     await page.screenshot({ path: "test-results/library.png" });
-    await page.getByRole("button", { name: "Выбрать для занятия" }).click();
-    await page.getByRole("button", { name: "Выбрать стихотворение", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Зимнее утро", exact: true, level: 1 })).toBeVisible();
     saved = await page.evaluate(() => window.readly.request({ op: "load" }));
     expect(saved.state.stanzas).toHaveLength(5);

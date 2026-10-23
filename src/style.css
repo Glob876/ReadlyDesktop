@@ -1155,3 +1155,58 @@ dialog p {
     transition: none !important;
   }
 }
+
+/* Library, practice controls and results share the existing quiet visual style. */
+.personal-cards { display: grid; gap: 14px; margin: 20px 0 30px; }
+.personal-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px; border: 1px solid var(--border); border-radius: 8px; background: rgb(var(--card) / .5); }
+.personal-card h2 { margin: 0 0 6px; font-size: 20px; }
+.personal-card p { margin: 6px 0; }
+.personal-card .button-row { flex-wrap: wrap; justify-content: flex-end; }
+.library-filters { grid-template-columns: minmax(180px, 2fr) repeat(2, minmax(130px, 1fr)); }
+.library-filters select, .lesson-options select, .settings-section select { padding: 10px 12px; color: var(--text); background: rgb(var(--card)); border: 1px solid var(--border); border-radius: 5px; max-width: 100%; }
+.library-filters label, .lesson-options label { display: flex; flex-direction: column; gap: 7px; }
+.lesson-options { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px; text-align: left; }
+.lesson-options summary { cursor: pointer; font-weight: 600; margin-bottom: 14px; }
+.lesson-options label { margin: 14px 0; font-size: 13px; }
+.lesson-options fieldset { border: 1px solid var(--border); padding: 10px; margin-top: 15px; border-radius: 5px; }
+.lesson-options legend { font-size: 12px; line-height: 1.6; }
+.lesson-options legend small { font-weight: normal; }
+.stanza-choices { display: flex; gap: 8px 14px; flex-wrap: wrap; max-height: 180px; overflow: auto; }
+.stanza-choices label { flex-direction: row; align-items: center; margin: 3px 0; }
+.stanza-choices input { width: auto; accent-color: var(--accent); }
+.lesson-options p { font-size: 12px; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; margin: 25px 0 35px; }
+.stats-grid > div { padding: 20px; border: 1px solid var(--border); border-radius: 6px; }
+.stats-grid dt { color: var(--muted); font-size: 12px; }
+.stats-grid dd { margin: 10px 0 0; font-size: 30px; }
+.table-scroll { overflow: auto; margin: 18px 0; }
+.data-table { border-collapse: collapse; width: 100%; text-align: left; }
+.data-table th, .data-table td { border-bottom: 1px solid var(--border); padding: 12px; }
+.history-list { padding: 0; list-style: none; }
+.history-list li { display: flex; gap: 16px; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.history-list time { color: var(--muted); }
+.answer-diff { padding: 18px 22px; margin: 20px 0; border: 1px solid var(--border); border-radius: 6px; }
+.answer-diff h2 { font-size: 16px; margin-top: 0; }
+.answer-diff li { margin: 8px 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.answer-diff ins { text-decoration: none; font-weight: 600; }
+.answer-diff del { text-decoration-thickness: 2px; }
+.answer-diff .muted { font-size: 12px; }
+.focus-mode .sidebar { display: none; }
+.focus-mode .lesson-page { max-width: 1200px; margin: 0 auto; }
+.sidebar { overflow-y: auto; }
+.sidebar-progress { margin-top: 18px; }
+.settings-section .button-row { flex-wrap: wrap; justify-content: flex-start; margin: 18px 0; }
+.settings-section h2:not(:first-child) { margin-top: 30px; }
+.settings-section #restore-backup { margin-top: 16px; }
+.poem-text, .poem p { font-family: var(--poem-font, Georgia, serif); line-height: var(--poem-line-height, 1.6); }
+#main > .page > h2 { margin-top: 28px; }
+button:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.error-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.error-banner[hidden] { display: none; }
+@media (max-width: 1100px) {
+  .library-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .personal-card { align-items: flex-start; flex-direction: column; }
+  .personal-card .button-row { justify-content: flex-start; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .history-list li { flex-wrap: wrap; }
+}
