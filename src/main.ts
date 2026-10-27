@@ -3,6 +3,7 @@ import type { Command, State, Settings, Poem } from "./types";
 import { classics, authors, searchClassics } from "./library";
 import corpusLicense from "./data/PoetryCorpus-LICENSE.txt?raw";
 import { icon } from "./icons";
+import { installSmoothCaret } from "./caret";
 const escape = (s: string) =>
   s.replace(
     /[&<>"']/g,
@@ -89,7 +90,11 @@ function count(n: number, forms: [string, string, string]) {
   const teen = n % 100 >= 11 && n % 100 <= 14;
   return `${n} ${forms[teen ? 2 : last === 1 ? 0 : last >= 2 && last <= 4 ? 1 : 2]}`;
 }
-function render() {
+let navigationObserver: ResizeObserver | undefined;
+function render(transition?: "page" | "tab") {
+  navigationObserver?.disconnect();
+  const previousNav = document.querySelector(".nav-indicator")?.getBoundingClientRect();
+  const previousTab = document.querySelector(".tab-indicator")?.getBoundingClientRect();
   appearance(page === "settings" ? draft : state.settings);
   root.innerHTML = `<div class="window"><header class="titlebar"><div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>Readly</span></div><span class="window-caption">Стихотворения</span>${window.readly.desktop ? `<div class="window-controls"><button data-window="minimize" aria-label="Свернуть">${icon("minus")}</button><button data-window="maximize" aria-label="Развернуть">${icon("square")}</button><button data-window="close" aria-label="Закрыть">${icon("close")}</button></div>` : '<span class="preview-label">Предпросмотр</span>'}</header>
     <div class="workspace"><aside class="sidebar"><div class="nav-label">БИБЛИОТЕКА</div><nav aria-label="Основная навигация"><button data-page="home" class="nav-item ${page === "home" ? "active" : ""}">${icon("book")}<span>Стихотворение</span></button><button data-page="learn" class="nav-item ${page === "learn" ? "active" : ""}">${icon("feather")}<span>Занятие</span>${state.started && state.position < state.tasks.length ? '<span class="nav-dot"></span>' : ""}</button></nav>
@@ -98,6 +103,57 @@ function render() {
     <div class="sidebar-bottom"><button data-page="settings" class="nav-item ${page === "settings" ? "active" : ""}">${icon("settings")}Настройки</button><button id="help" class="nav-item">${icon("help")}Как заниматься</button></div></aside>
     <main id="main"><div id="error" class="error-banner" role="alert" hidden></div>${page === "home" ? home() : page === "learn" ? lesson() : page === "library" ? library() : settings()}</main></div><footer class="statusbar"><span>${count(state.stanzas.length, ["строфа", "строфы", "строф"])} <span class="dot-separator">·</span> ${count(state.stanzas.flat().length, ["строка", "строки", "строк"])}</span><span>${page === "learn" ? "Ctrl + Enter — проверить" : "Readly · 0.1.0"}</span></footer></div><dialog id="dialog"></dialog>`;
   bind();
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  for (const [containerSelector, activeSelector, className, previous] of [
+    [".sidebar", ".nav-item.active", "nav-indicator", previousNav],
+    [".tabs", "button.selected", "tab-indicator", previousTab],
+  ] as const) {
+    const container = document.querySelector<HTMLElement>(containerSelector);
+    const selected = container?.querySelector<HTMLElement>(activeSelector);
+    if (!container || !selected) continue;
+    const bounds = selected.getBoundingClientRect();
+    const parent = container.getBoundingClientRect();
+    const indicator = document.createElement("span");
+    indicator.className = className;
+    indicator.setAttribute("aria-hidden", "true");
+    Object.assign(indicator.style, {
+      left: `${bounds.left - parent.left}px`,
+      top: `${bounds.top - parent.top + (className === "tab-indicator" ? bounds.height - 2 : 0)}px`,
+      width: `${bounds.width}px`, height: className === "tab-indicator" ? "2px" : `${bounds.height}px`,
+    });
+    container.append(indicator);
+    if (transition && previous && !reducedMotion) {
+      const current = indicator.getBoundingClientRect();
+      indicator.animate([
+        { transform: `translate(${previous.left - current.left}px, ${previous.top - current.top}px) scale(${previous.width / current.width}, ${previous.height / current.height})` },
+        { transform: "none" },
+      ], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" });
+    }
+  }
+  navigationObserver = new ResizeObserver(() => {
+    for (const [containerSelector, selectedSelector, indicatorSelector] of [
+      [".sidebar", ".nav-item.active", ".nav-indicator"],
+      [".tabs", "button.selected", ".tab-indicator"],
+    ]) {
+      const container = document.querySelector<HTMLElement>(containerSelector);
+      const selected = container?.querySelector<HTMLElement>(selectedSelector);
+      const indicator = container?.querySelector<HTMLElement>(indicatorSelector);
+      if (!container || !selected || !indicator) continue;
+      const bounds = selected.getBoundingClientRect();
+      const parent = container.getBoundingClientRect();
+      Object.assign(indicator.style, {
+        left: `${bounds.left - parent.left}px`,
+        top: `${bounds.top - parent.top + (indicatorSelector === ".tab-indicator" ? bounds.height - 2 : 0)}px`,
+        width: `${bounds.width}px`,
+        height: indicatorSelector === ".tab-indicator" ? "2px" : `${bounds.height}px`,
+      });
+    }
+  });
+  document.querySelectorAll(".sidebar, .tabs").forEach((element) => navigationObserver!.observe(element));
+  if (transition && !reducedMotion) {
+    document.querySelector(transition === "tab" ? "#settings-form" : "#main > .page, #main > .empty-state")
+      ?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
+  }
 }
 function home() {
   const complete = state.position >= state.tasks.length;
@@ -199,7 +255,7 @@ function navigate(next: typeof page) {
   poemDraft = { ...state.poem };
   feedback = "";
   hinted = false;
-  render();
+  render("page");
   if (page === "learn")
     document.querySelector<HTMLTextAreaElement>("#answer")?.focus();
 }
@@ -319,8 +375,11 @@ function bind() {
   document.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach(
     (b) =>
       (b.onclick = () => {
-        settingsTab = b.dataset.tab as typeof settingsTab;
-        render();
+        const next = b.dataset.tab as typeof settingsTab;
+        if (settingsTab === next) return;
+        settingsTab = next;
+        render("tab");
+        document.querySelector<HTMLButtonElement>(`[data-tab="${next}"]`)?.focus({ preventScroll: true });
       }),
   );
   document.querySelectorAll<HTMLInputElement>("[data-setting]").forEach(
@@ -444,6 +503,7 @@ async function init() {
     (document.querySelector("#error") as HTMLElement).hidden = false;
     return;
   }
+  installSmoothCaret(root);
   window.readly.onWindowExpanded((expanded) => {
     document.documentElement.toggleAttribute("data-window-expanded", expanded);
   });
