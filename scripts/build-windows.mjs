@@ -33,7 +33,10 @@ catch {
   const { writeFile } = await import("node:fs/promises");
   await writeFile(path.join(runtimeDir, ".complete"), version);
 }
-const result = await pack({ platform: "win32", arch: "x64", runtimeDir,
+// PyInstaller cannot produce a Windows Tk application from Linux.
+// Cross releases retain the modern app; build on Windows to include Legacy.
+if (process.env.READLY_NO_LEGACY !== "1") console.log("Readly Legacy не входит в кросс-сборку: для него запустите build.cmd на Windows.");
+const result = await pack({ includeLegacy: false, platform: "win32", arch: "x64", runtimeDir,
   corePath: path.join(root, "native/target", target, "release/readly-core.exe"),
 });
 console.log(`Windows x64: ${result}/Readly.exe`);

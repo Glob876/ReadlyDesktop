@@ -6,8 +6,8 @@ import { setupWindows } from "./setup-windows.mjs";
 
 try {
   const args = process.argv.slice(2);
-  if (args.some((arg) => !["--pack-only", "--help", "-h"].includes(arg))) {
-    throw new Error("Использование: build.cmd [--pack-only]. Флаг --windows предназначен для сборки из Linux.");
+  if (args.some((arg) => !["--pack-only", "--no-legacy", "--help", "-h"].includes(arg))) {
+    throw new Error("Использование: build.cmd [--pack-only] [--no-legacy]. Флаг --windows предназначен для сборки из Linux.");
   }
   if (args.includes("--help") || args.includes("-h")) {
     console.log("build.cmd — сборка и установка Readly; build.cmd --pack-only — только переносимая сборка.");
@@ -15,6 +15,7 @@ try {
     if (process.platform !== "win32") throw new Error("Этот скрипт предназначен для Windows. В Linux используйте ./build.sh.");
     process.chdir(fileURLToPath(new URL("../", import.meta.url)));
     const env = setupWindows();
+    if (args.includes("--no-legacy")) env.READLY_NO_LEGACY = "1";
     const run = (command, arguments_) => execFileSync(command, arguments_, { env, stdio: "inherit" });
     // npm.cmd requires cmd.exe. All its arguments below are fixed literals.
     const npm = (...arguments_) => run(process.env.ComSpec || "cmd.exe", ["/d", "/c", "npm", ...arguments_]);

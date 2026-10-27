@@ -57,3 +57,18 @@ test("launcher bootstraps old Node before installing or building", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("legacy launcher bypasses Node, npm and Cargo", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "readly-launch-legacy-"));
+  try {
+    await copyFile("run.sh", path.join(dir, "run.sh"));
+    await mkdir(path.join(dir, "bin"));
+    await writeFile(path.join(dir, "bin/python3"), '#!/bin/sh\nprintf "%s\\n" "$@" > legacy-call\n', { mode: 0o755 });
+    for (const name of ["node", "npm", "cargo"]) {
+      await writeFile(path.join(dir, "bin", name), '#!/bin/sh\nexit 99\n', { mode: 0o755 });
+    }
+    const result = spawnSync("bash", [path.join(dir, "run.sh"), "--legacy"], { env: { ...process.env, PATH: `${dir}/bin:${process.env.PATH}` }, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(await readFile(path.join(dir, "legacy-call"), "utf8"), `${dir}/legacy/bootstrap.py\n`);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});

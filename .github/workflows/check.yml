@@ -22,7 +22,10 @@ jobs:
       - run: npm ci
       - run: cargo fmt --manifest-path native/Cargo.toml --check
       - run: cargo clippy --manifest-path native/Cargo.toml --all-targets -- -D warnings
+      - run: sudo apt-get update && sudo apt-get install -y python3-tk python3-venv xvfb xauth
       - run: ./build.sh --pack-only
+      - run: xvfb-run -a .legacy-venv/bin/python tests/legacy-ui.py
+      - run: xvfb-run -a .legacy-venv/bin/python tests/legacy-bundle.py
       - run: npm test
       - run: npx playwright install-deps chromium
       - run: sudo apt-get install -y xfwm4

@@ -8,8 +8,9 @@ windows_build=0
 for argument in "$@"; do
   case "$argument" in
     --help|-h)
-      printf 'Использование: ./build.sh [--pack-only] [--windows]\nБез флагов: сборка и установка для текущего пользователя (Linux или Windows/Git Bash).\n--pack-only: переносимая сборка в release/, без установки.\n--windows: сборка Windows x64 из Linux в release/Readly-win32-x64/, без установки.\n'
+      printf 'Использование: ./build.sh [--pack-only] [--windows] [--no-legacy]\nБез флагов: сборка и установка для текущего пользователя (Linux или Windows/Git Bash).\n--no-legacy: не собирать и не устанавливать Readly Legacy.\n--pack-only: переносимая сборка в release/, без установки.\n--windows: сборка Windows x64 из Linux в release/Readly-win32-x64/, без установки.\n'
       exit 0 ;;
+    --no-legacy) export READLY_NO_LEGACY=1 ;;
     --pack-only) pack_only=1 ;;
     --windows) windows_build=1; pack_only=1 ;;
     *) printf 'Неизвестный аргумент: %s. См. ./build.sh --help\n' "$argument" >&2; exit 1 ;;

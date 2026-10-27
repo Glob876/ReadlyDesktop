@@ -3,6 +3,21 @@ set -euo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
+if [[ "${1:-}" == "--legacy" ]]; then
+  shift
+  if [[ "$#" != 0 ]]; then
+    printf 'Использование: ./run.sh --legacy\n' >&2
+    exit 1
+  fi
+  for python in python3 python; do
+    if command -v "$python" >/dev/null 2>&1; then
+      exec "$python" "$PWD/legacy/bootstrap.py"
+    fi
+  done
+  printf 'Для запуска Legacy из исходников требуется Python 3.12+ и Tkinter (или uv). См. README.md.\n' >&2
+  exit 1
+fi
+
 for command in node npm cargo; do
   if ! command -v "$command" >/dev/null 2>&1; then
     printf 'Для запуска Readly требуется %s. См. README.md.\n' "$command" >&2

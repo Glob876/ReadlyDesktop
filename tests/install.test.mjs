@@ -12,6 +12,7 @@ async function put(root, file, content = "fixture", mode = 0o644) {
   await writeFile(path.join(root, file), content, { mode });
 }
 async function source(root, windows = false) {
+  await put(root, "legacy/README.md");
   await put(root, "package.json", JSON.stringify({ name: "readly-desktop", productName: "Readly", version: "0.1.0", main: "dist-electron/electron/main.js" }));
   for (const file of ["dist/index.html", "dist-electron/electron/main.js", "assets/icon.png", "assets/icon.svg", "src/assets/icons/LICENSE", "README.md", "native/Cargo.lock", "package-lock.json"]) await put(root, file);
   await mkdir(path.join(root, "scripts"), { recursive: true });
@@ -19,6 +20,7 @@ async function source(root, windows = false) {
   await put(root, `native/target/release/readly-core${windows ? ".exe" : ""}`);
   await put(root, `node_modules/electron/dist/${windows ? "electron.exe" : "electron"}`, '#!/bin/sh\nprintf "%s\\n" "$@"\n', 0o755);
   await put(root, "node_modules/electron/dist/LICENSE");
+  await put(root, `release/legacy/ReadlyLegacy/ReadlyLegacy${windows ? ".exe" : ""}`, '#!/bin/sh\nprintf "legacy:%s\\n" "$@"\n', 0o755);
   if (windows) await put(root, "node_modules/electron/dist/electron_wer.dll");
 }
 
@@ -93,5 +95,29 @@ test("Windows packaging includes an executable, Rust exe and standalone Start-me
       assert.equal(args.at(-1), path.join(release, "Install.ps1"));
     } });
     assert.ok(called);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("Legacy installs a working launcher and can be disabled without deleting user data", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "readly-install-legacy-"));
+  try {
+    const homeDir = path.join(root, "User's files 100% $literal");
+    const data = path.join(homeDir, ".local/share");
+    await source(root);
+    const options = { root, platform: "linux", arch: "x64", homeDir, env: {} };
+    await pack({ root, platform: "linux", arch: "x64" });
+    const { bin } = await install(options);
+    const result = spawnSync(path.join(bin, "readly-legacy"), ["a b"], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "legacy:a b\n");
+    const shortcut = path.join(data, "applications/readly-legacy.desktop");
+    assert.match(await readFile(shortcut, "utf8"), /Name=Readly Legacy/);
+    await put(data, "readly-legacy/stih.txt", "Сохранить мой текст");
+    await pack({ root, platform: "linux", arch: "x64", includeLegacy: false });
+    await install(options);
+    await assert.rejects(access(path.join(bin, "readly-legacy")));
+    await assert.rejects(access(shortcut));
+    assert.equal(await readFile(path.join(data, "readly-legacy/stih.txt"), "utf8"), "Сохранить мой текст");
+    await access(path.join(bin, "readly"));
   } finally { await rm(root, { recursive: true, force: true }); }
 });

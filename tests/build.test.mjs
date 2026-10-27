@@ -73,3 +73,13 @@ test("Git Bash delegates Windows bootstrap before checking Node/Cargo and forwar
     assert.equal(await f.calls(), before);
   } finally { await rm(f.dir, { recursive: true, force: true }); }
 });
+
+test("no-legacy flag reaches the pack step", { skip: process.platform !== "linux" }, async () => {
+  const f = await fixture();
+  try {
+    await writeFile(path.join(f.bin, "npm"), '#!/bin/sh\nif [ "$2" = "pack" ]; then printf "%s" "$READLY_NO_LEGACY" > legacy-flag; fi\n', { mode: 0o755 });
+    const result = f.run("--pack-only", "--no-legacy");
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(await readFile(path.join(f.dir, "legacy-flag"), "utf8"), "1");
+  } finally { await rm(f.dir, { recursive: true, force: true }); }
+});

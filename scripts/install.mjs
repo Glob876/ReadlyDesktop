@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { desktopEntry, shellQuote } from "./pack.mjs";
+import { desktopEntry, legacyDesktopEntry, shellQuote } from "./pack.mjs";
 
 async function exists(file) {
   try { await lstat(file); return true; }
@@ -50,6 +50,18 @@ export async function install({
       throw new Error(`Команда ${launcher} уже существует. Освободите это имя перед установкой Readly.`);
     }
   }
+  const legacyLauncher = path.join(bin, "readly-legacy");
+  const legacyMarker = "#!/bin/sh\n# Readly Legacy launcher\n";
+  const hasLegacy = await exists(path.join(source, "ReadlyLegacy"));
+  if (await exists(legacyLauncher)) {
+    if ((await lstat(legacyLauncher)).isSymbolicLink() || !(await readFile(legacyLauncher, "utf8")).startsWith(legacyMarker)) {
+      throw new Error(`Команда ${legacyLauncher} уже существует и не принадлежит Readly Legacy.`);
+    }
+  }
+  const legacyDesktopPath = path.join(data, "applications/readly-legacy.desktop");
+  if (hasLegacy && await exists(legacyDesktopPath) && !(await readFile(legacyDesktopPath, "utf8")).includes("StartupWMClass=ReadlyLegacy")) {
+    throw new Error(`Ярлык ${legacyDesktopPath} уже существует и не принадлежит Readly Legacy.`);
+  }
   await mkdir(data, { recursive: true });
   const temporary = await mkdtemp(path.join(data, ".readly-install-"));
   const staged = path.join(temporary, "next");
@@ -58,6 +70,7 @@ export async function install({
     await cp(source, staged, { recursive: true, verbatimSymlinks: true });
     await lstat(path.join(staged, "readly"));
     await lstat(path.join(staged, "resources/readly-core"));
+    if (hasLegacy) await lstat(path.join(staged, "resources/legacy/ReadlyLegacy"));
     await writeFile(path.join(staged, ".readly-install.json"), JSON.stringify({ name: metadata.name, version: metadata.version }));
     const updating = await exists(target);
     if (updating) await rename(target, backup);
@@ -72,6 +85,16 @@ export async function install({
   const applications = path.join(data, "applications");
   await mkdir(applications, { recursive: true });
   await writeFile(path.join(applications, "readly-desktop.desktop"), desktopEntry(path.join(target, "Readly"), path.join(target, "readly.png")));
+  const legacyDesktop = path.join(applications, "readly-legacy.desktop");
+  if (hasLegacy) {
+    await writeFile(legacyLauncher, `${legacyMarker}exec ${shellQuote(path.join(target, "ReadlyLegacy"))} "$@"\n`, { mode: 0o755 });
+    await writeFile(legacyDesktop, legacyDesktopEntry(path.join(target, "ReadlyLegacy"), path.join(target, "readly.png")));
+  } else {
+    await rm(legacyLauncher, { force: true });
+    if (await exists(legacyDesktop) && (await readFile(legacyDesktop, "utf8")).includes("StartupWMClass=ReadlyLegacy")) {
+      await rm(legacyDesktop);
+    }
+  }
   await updatePathFile(path.join(homeDir, ".profile"), bin);
   await updatePathFile(path.join(homeDir, ".bashrc"), bin);
   const config = env.XDG_CONFIG_HOME && path.isAbsolute(env.XDG_CONFIG_HOME) ? env.XDG_CONFIG_HOME : path.join(homeDir, ".config");

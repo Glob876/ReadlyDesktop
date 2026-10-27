@@ -23,6 +23,22 @@ npm run build
 npm start
 ```
 
+## Классический Readly Legacy
+
+`./run.sh --legacy` запускает классический `Readly.pyw` на Tkinter. При первом запуске устанавливаются Python-зависимости в отдельную `.legacy-venv`. Нужен Python 3.12+ с Tkinter и Xft (системный Python в Linux), а также `uv` либо `venv` и `pip`. В Windows uv может сам загрузить Python с Tkinter. В Linux пакеты для системного Python: `python3-tk python3-venv` (Debian/Ubuntu), `tk python-pip` (Arch), `python3-tkinter python3-pip` (Fedora).
+
+`./build.sh` по умолчанию собирает и устанавливает **Readly** и **Readly Legacy**. Legacy включает Python и Tkinter; после установки дополнительных зависимостей Python для запуска не нужно. В меню приложений появится Readly Legacy, в терминале — `readly-legacy` (Linux). В Windows используется отдельный ярлык Readly Legacy и `ReadlyLegacy.cmd`.
+
+```sh
+./build.sh --no-legacy             # установить только современный Readly
+./build.sh --pack-only             # переносимая сборка обоих приложений
+./build.sh --pack-only --no-legacy # переносимая сборка без Legacy
+```
+
+В Windows флаг `--no-legacy` поддерживают и `build.cmd`, и `./build.sh` из Git Bash. Кросс-сборка `./build.sh --windows` включает только современный Readly: для упаковки Legacy нужен запуск `build.cmd` на Windows.
+
+Legacy хранит `stih.txt` и `settings.txt` отдельно: `~/.local/share/readly-legacy` (или `$XDG_DATA_HOME/readly-legacy`) в Linux, `%APPDATA%\ReadlyLegacy` в Windows. Кнопка «Открыть папку» открывает эти файлы. Обновление и сборка с `--no-legacy` сохраняют пользовательские данные. Подробнее: [legacy/README.md](legacy/README.md).
+
 ## Сборка и установка
 
 **Windows:** откройте папку проекта и дважды щёлкните **`build.cmd`**. Вручную ставить инструменты и выбирать компоненты не нужно: скрипт проверит зависимости, установит недостающие **Node.js LTS**, **Visual Studio Build Tools 2022 с C++ и Windows SDK**, **Rust/Cargo** через winget, затем соберёт и установит Readly. Если Build Tools уже установлены без нужных компонентов, скрипт сам добавит их через установленный Visual Studio Installer. Подтвердите запрос прав администратора от Windows, если он появится. При первой установке нужны интернет, время на загрузку инструментов и свободное место; если установщик потребует перезагрузку, перезагрузите Windows и снова откройте `build.cmd`.

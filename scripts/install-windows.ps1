@@ -43,6 +43,19 @@ try {
     $shortcut.IconLocation = $executable
     $shortcut.Save()
 
+    $legacyExecutable = Join-Path $target 'resources\legacy\ReadlyLegacy.exe'
+    $legacyShortcut = Join-Path $programs 'Readly Legacy.lnk'
+    if (Test-Path -LiteralPath $legacyExecutable) {
+        $shortcut = $shell.CreateShortcut($legacyShortcut)
+        $shortcut.TargetPath = $legacyExecutable
+        $shortcut.WorkingDirectory = $target
+        $shortcut.IconLocation = $executable
+        $shortcut.Save()
+    } elseif (Test-Path -LiteralPath $legacyShortcut) {
+        $existing = $shell.CreateShortcut($legacyShortcut)
+        if ($existing.TargetPath -eq $legacyExecutable) { Remove-Item -LiteralPath $legacyShortcut }
+    }
+
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $entries = @($userPath -split ';' | Where-Object { $_ })
     if (-not ($entries | Where-Object { $_.TrimEnd('\') -ieq $target.TrimEnd('\') })) {

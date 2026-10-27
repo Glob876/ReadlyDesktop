@@ -3,8 +3,8 @@
 
 try {
     foreach ($argument in $args) {
-        if ($argument -notin @('--pack-only', '--help', '-h')) {
-            throw 'Использование: build.cmd [--pack-only]. Флаг --windows нужен только в Linux.'
+        if ($argument -notin @('--pack-only', '--no-legacy', '--help', '-h')) {
+            throw 'Использование: build.cmd [--pack-only] [--no-legacy]. Флаг --windows нужен только в Linux.'
         }
     }
     if ($args -contains '--help' -or $args -contains '-h') {
@@ -38,6 +38,23 @@ try {
         Update-BuildPath
         & node.exe -e 'const [a,b]=process.versions.node.split(/[.]/).map(Number); process.exit(a>22 || (a===22 && b>=12) ? 0 : 1)'
         if ($LASTEXITCODE -ne 0) { throw 'Node.js 22.12+ пока недоступен. Перезагрузите Windows и снова откройте build.cmd.' }
+    }
+    if ($args -notcontains '--no-legacy') {
+        $pythonReady = $false
+        if (Get-Command python.exe -ErrorAction SilentlyContinue) {
+            & python.exe -c 'import sys, tkinter; sys.exit(0 if sys.version_info >= (3, 12) else 1)'
+            $pythonReady = $LASTEXITCODE -eq 0
+        }
+        if (-not $pythonReady) {
+            if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
+                throw 'Для Legacy нужен Python 3.12 с Tkinter. Установите Python или используйте --no-legacy.'
+            }
+            & winget.exe install --exact --id Python.Python.3.12 --source winget --scope user --accept-source-agreements --accept-package-agreements --disable-interactivity --silent
+            if ($LASTEXITCODE -ne 0) { throw "Не удалось установить Python для Legacy (код $LASTEXITCODE)." }
+            Update-BuildPath
+            & python.exe -c 'import tkinter'
+            if ($LASTEXITCODE -ne 0) { throw 'Python с Tkinter пока недоступен. Перезапустите терминал или используйте --no-legacy.' }
+        }
     }
     & node.exe (Join-Path $PSScriptRoot 'build-local.mjs') @args
     exit $LASTEXITCODE

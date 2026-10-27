@@ -1,6 +1,7 @@
-import { cp, mkdir, writeFile, chmod, rename, rm, readFile } from "node:fs/promises";
+import { cp, mkdir, writeFile, chmod, rename, rm, readFile, access } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 
 export const shellQuote = (value) => "'" + value.replaceAll("'", "'\\''") + "'";
@@ -12,8 +13,14 @@ export function desktopEntry(executable, icon) {
   return `[Desktop Entry]\nType=Application\nName=Readly\nComment=Заучивание стихотворений\nExec=${exec}\nIcon=${image}\nTerminal=false\nCategories=Education;\nStartupWMClass=readly-desktop\n`;
 }
 
-export async function pack({ root = path.resolve("."), platform = process.platform, arch = process.arch, runtimeDir = path.join(root, "node_modules/electron/dist"), corePath } = {}) {
+export function legacyDesktopEntry(executable, icon) {
+  return desktopEntry(executable, icon).replace("Name=Readly\n", "Name=Readly Legacy\n")
+    .replace("StartupWMClass=readly-desktop", "StartupWMClass=ReadlyLegacy");
+}
+
+export async function pack({ root = path.resolve("."), platform = process.platform, arch = process.arch, runtimeDir = path.join(root, "node_modules/electron/dist"), corePath, includeLegacy = process.env.READLY_NO_LEGACY !== "1" } = {}) {
   if (!["linux", "win32"].includes(platform)) throw new Error("Упаковка поддерживает Linux и Windows.");
+  if (includeLegacy) await access(path.join(root, "release/legacy/ReadlyLegacy", platform === "win32" ? "ReadlyLegacy.exe" : "ReadlyLegacy"));
   const target = path.join(root, "release", `Readly-${platform}-${arch}`);
   // Start clean so removed application files cannot survive in a new release.
   await rm(target, { recursive: true, force: true });
@@ -25,6 +32,13 @@ export async function pack({ root = path.resolve("."), platform = process.platfo
     // Newer Electron builds use a DLL named after the executable for crash reporting.
     try { await rename(path.join(target, "electron_wer.dll"), path.join(target, "Readly_wer.dll")); }
     catch (error) { if (error.code !== "ENOENT") throw error; }
+  }
+  if (includeLegacy) {
+    await cp(path.join(root, "release/legacy/ReadlyLegacy"), path.join(target, "resources/legacy"), { recursive: true });
+    await cp(path.join(root, "legacy/README.md"), path.join(target, "ReadlyLegacy-README.md"));
+    await writeFile(path.join(target, "ReadlyLegacy" + (windows ? ".cmd" : "")), windows
+      ? '@echo off\r\n"%~dp0resources\\legacy\\ReadlyLegacy.exe" %*\r\n'
+      : '#!/bin/sh\ncd -- "$(dirname -- "$0")" || exit 1\nexec ./resources/legacy/ReadlyLegacy "$@"\n', { mode: 0o755 });
   }
   const appDir = path.join(target, "resources/app");
   await mkdir(appDir, { recursive: true });
@@ -56,5 +70,9 @@ export async function pack({ root = path.resolve("."), platform = process.platfo
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   // Electron downloads its runtime lazily on first use.
   createRequire(import.meta.url)("electron");
+  if (process.env.READLY_NO_LEGACY !== "1") {
+    const python = process.platform === "win32" ? "python" : "python3";
+    execFileSync(python, ["legacy/bootstrap.py", "--build"], { stdio: "inherit" });
+  }
   console.log(`Сборка готова: ${await pack()}`);
 }
