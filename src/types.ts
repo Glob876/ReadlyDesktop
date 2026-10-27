@@ -1,3 +1,5 @@
+import type { TextFont } from "./fonts";
+
 export interface Settings {
   caseSensitive: boolean;
   punctuation: boolean;
@@ -8,7 +10,7 @@ export interface Settings {
   accent: "green" | "blue" | "purple" | "rose" | "orange" | "slate";
   opacity: number;
   fontSize: number;
-  fontFamily: "serif" | "sans" | "mono";
+  fontFamily: TextFont;
   lineHeight: number;
 }
 export interface Poem { title: string; author: string; text: string }

@@ -1,4 +1,5 @@
 import "./style.css";
+import { textFonts } from "./fonts";
 import type { Command, State, Settings, Poem, Plan, Difference, Result } from "./types";
 import { classics, authors, searchClassics } from "./library";
 import corpusLicense from "./data/PoetryCorpus-LICENSE.txt?raw";
@@ -64,7 +65,7 @@ function appearance(s: Settings) {
     String(s.opacity / 100),
   );
   document.documentElement.style.setProperty("--poem-size", s.fontSize + "px");
-  document.documentElement.style.setProperty("--poem-font", {serif:'Georgia, "Times New Roman", serif',sans:'Arial, sans-serif',mono:'monospace'}[s.fontFamily] || 'Georgia, serif');
+  document.documentElement.style.setProperty("--poem-font", textFonts.find((font) => font.id === s.fontFamily)?.family ?? textFonts[0].family);
   document.documentElement.style.setProperty("--poem-line-height", String(s.lineHeight || 1.8));
 }
 system.addEventListener("change", () =>
@@ -291,7 +292,7 @@ function settings() {
               )
               .join(
                 "",
-              )}</div><fieldset class="accent-setting"><legend>Акцентный цвет</legend><p class="section-description">Цвет кнопок, выделений и индикаторов.</p><div class="accent-options">${accents.map((color) => `<label class="accent-option"><input type="radio" name="accent" value="${color.id}" ${draft.accent === color.id ? "checked" : ""}><span class="accent-swatch" style="--swatch:${color.light};--swatch-dark:${color.dark}" aria-hidden="true">${icon("check")}</span><span>${color.label}</span></label>`).join("")}</div></fieldset><label class="range-setting"><span><strong>Непрозрачность фона</strong><small>Прозрачность окна зависит от поддержки композитора системы.</small></span><output id="opacity-value">${draft.opacity}%</output><input aria-label="Непрозрачность фона" type="range" name="opacity" min="55" max="100" value="${draft.opacity}"></label><label class="range-setting"><span><strong>Размер текста стихотворения</strong><small>В образце и поле для ввода.</small></span><output id="font-value">${draft.fontSize} px</output><input aria-label="Размер текста" type="range" name="fontSize" min="18" max="34" value="${draft.fontSize}"></label><label class="range-setting"><span><strong>Шрифт</strong></span><select name="fontFamily">${[["serif","С засечками"],["sans","Без засечек"],["mono","Моноширинный"]].map(([v,l])=>`<option value="${v}" ${draft.fontFamily===v?"selected":""}>${l}</option>`).join("")}</select></label><label class="range-setting"><span><strong>Межстрочный интервал</strong></span><output id="line-height-value">${draft.lineHeight}</output><input name="lineHeight" type="range" min="1.2" max="2.4" step="0.1" value="${draft.lineHeight}" aria-label="Межстрочный интервал"></label><div class="font-preview poem-text">Мороз и солнце; день чудесный!</div>${settingsFooter()}</section>`
+              )}</div><fieldset class="accent-setting"><legend>Акцентный цвет</legend><p class="section-description">Цвет кнопок, выделений и индикаторов.</p><div class="accent-options">${accents.map((color) => `<label class="accent-option"><input type="radio" name="accent" value="${color.id}" ${draft.accent === color.id ? "checked" : ""}><span class="accent-swatch" style="--swatch:${color.light};--swatch-dark:${color.dark}" aria-hidden="true">${icon("check")}</span><span>${color.label}</span></label>`).join("")}</div></fieldset><label class="range-setting"><span><strong>Непрозрачность фона</strong><small>Прозрачность окна зависит от поддержки композитора системы.</small></span><output id="opacity-value">${draft.opacity}%</output><input aria-label="Непрозрачность фона" type="range" name="opacity" min="55" max="100" value="${draft.opacity}"></label><label class="range-setting"><span><strong>Размер текста стихотворения</strong><small>В образце и поле для ввода.</small></span><output id="font-value">${draft.fontSize} px</output><input aria-label="Размер текста" type="range" name="fontSize" min="18" max="34" value="${draft.fontSize}"></label><label class="range-setting"><span><strong>Шрифт</strong></span><select name="fontFamily">${textFonts.map(({id:v,label:l})=>`<option value="${v}" ${draft.fontFamily===v?"selected":""}>${l}</option>`).join("")}</select></label><label class="range-setting"><span><strong>Межстрочный интервал</strong></span><output id="line-height-value">${draft.lineHeight}</output><input name="lineHeight" type="range" min="1.2" max="2.4" step="0.1" value="${draft.lineHeight}" aria-label="Межстрочный интервал"></label><div class="font-preview poem-text">Мороз и солнце; день чудесный!</div>${settingsFooter()}</section>`
     }</form></div>`;
 }
 function settingsFooter() {

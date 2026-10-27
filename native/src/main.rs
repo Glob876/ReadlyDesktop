@@ -193,7 +193,17 @@ fn validate_settings(s: &Settings) -> Result<(), String> {
         || !["green", "blue", "purple", "rose", "orange", "slate"].contains(&s.accent.as_str())
         || !(55..=100).contains(&s.opacity)
         || !(18..=34).contains(&s.font_size)
-        || !["serif", "sans", "mono"].contains(&s.font_family.as_str())
+        || ![
+            "serif",
+            "sans",
+            "mono",
+            "onest",
+            "manrope",
+            "inter",
+            "golos-text",
+            "rubik",
+        ]
+        .contains(&s.font_family.as_str())
         || !(1.2..=2.4).contains(&s.line_height)
     {
         return Err("Неверные параметры оформления.".into());
