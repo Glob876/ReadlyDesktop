@@ -303,21 +303,6 @@ input[type="radio"] {
   margin-top: auto;
   padding-bottom: 13px;
 }
-.local-note {
-  font-size: 10px;
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  color: var(--muted);
-  padding: 22px 12px 6px;
-}
-.status-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 100%;
-  background: var(--accent);
-  opacity: 0.65;
-}
 .statusbar {
   display: flex;
   align-items: center;
