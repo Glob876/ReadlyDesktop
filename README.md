@@ -23,14 +23,57 @@ npm run build
 npm start
 ```
 
-Переносимая папка для Linux текущей архитектуры:
+## Сборка и установка
 
 ```sh
-npm run pack
-./release/Readly-linux-x64/Readly
+./build.sh
 ```
 
-Папка содержит Electron, собранное Rust-ядро и интерфейс. Node.js и Rust на компьютере получателя не нужны. Сборку для другой ОС нужно выполнять на соответствующей системе; скрипт переносимой папки пока рассчитан на Linux. Электронный runtime сохраняет свои файлы лицензий в папке сборки.
+Скрипт определяет ОС, собирает приложение вместе с Electron и устанавливает его **для текущего пользователя, без sudo**. Нужны Node.js с npm, Rust/Cargo и системный линкер. Старый Node.js автоматически заменяется на Node.js 24 только на время выполнения скрипта. npm-зависимости устанавливаются при первом запуске и при изменении платформы, основной версии Node.js или lock-файла. Перед обновлением закройте Readly. Прогресс и настройки лежат отдельно от приложения и сохраняются.
+
+| Система | Куда устанавливается | Запуск |
+| --- | --- | --- |
+| Linux | `$XDG_DATA_HOME/readly` или `~/.local/share/readly` | Ярлык Readly в меню приложений и `~/.local/bin/readly` |
+| Windows | `%LOCALAPPDATA%\Programs\Readly` | `Readly.exe`, ярлык Readly в меню «Пуск», команда `readly` |
+
+В Linux скрипт добавляет `~/.local/bin` в PATH через `~/.profile` и `~/.bashrc`; для активной оболочки Zsh/Fish также обновляет её настройки. В Windows добавляется пользовательский PATH. Откройте новый терминал после установки; в Windows перезапустите приложение терминала целиком, если оно ещё использует старое окружение. Для запуска в уже открытом Bash можно выполнить `source ~/.bashrc`.
+
+В Windows запускайте `./build.sh` из **Git Bash**, используя Windows-версии Node.js и Rust. Для стандартного Rust MSVC нужны [Visual Studio Build Tools с компонентом «Разработка классических приложений на C++»](https://learn.microsoft.com/en-us/windows/dev-environment/rust/setup). WSL определяется как Linux и собирает Linux-версию.
+
+Только переносимая сборка, без установки и изменений PATH:
+
+```sh
+./build.sh --pack-only
+# Альтернатива при готовых npm-зависимостях:
+npm run pack
+```
+
+Результат — `release/Readly-linux-<архитектура>/` или `release/Readly-win32-<архитектура>/`. В Linux запускайте файл `Readly`, в Windows — `Readly.exe`. Переносите **всю папку**, включая `resources`, DLL и остальные файлы Electron. Node.js и Rust на компьютере получателя не нужны. Windows-папка содержит `Install.ps1`: для установки готовой сборки откройте PowerShell в этой папке и выполните:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install.ps1
+```
+
+Скрипт использует [ручную упаковку Electron](https://www.electronjs.org/docs/latest/tutorial/application-distribution), сохраняет его лицензии и включает лицензию Lucide. Готовый `Readly.exe` является приложением; для установки служит `Install.ps1`. Подпись приложения сертификатом и отдельный установочный `.exe` пока не создаются. Автоматическая упаковка и установка macOS не поддерживаются.
+
+### Windows-сборка из Linux
+
+```sh
+./build.sh --windows
+```
+
+Флаг собирает **Windows x64** в `release/Readly-win32-x64/`, независимо от архитектуры Linux-хоста. Он не устанавливает приложение и не изменяет Linux-версию Electron. Нужны `rustup` и компилятор MinGW-w64 с командой `x86_64-w64-mingw32-gcc`. Установите его средствами дистрибутива:
+
+```sh
+# Debian / Ubuntu
+sudo apt install gcc-mingw-w64-x86-64
+# Fedora
+sudo dnf install mingw64-gcc
+# Arch Linux
+sudo pacman -S mingw-w64-gcc
+```
+
+Скрипт сам добавляет Rust target `x86_64-pc-windows-gnu` и скачивает Windows Electron соответствующей версии с проверкой контрольных сумм. Нужен интернет при первой загрузке. Используется [GNU-инструментарий Rust для кросс-компиляции](https://blog.rust-lang.org/2025/05/26/demoting-i686-pc-windows-gnu/). Системные пакеты автоматически не устанавливаются. Проверять запуск результата следует на Windows.
 
 ## Занятие
 
