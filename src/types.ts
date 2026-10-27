@@ -45,6 +45,7 @@ declare global {
     readly: {
       request(command: Command): Promise<Result>;
       window(action: "minimize" | "maximize" | "close"): void;
+      onWindowExpanded(callback: (expanded: boolean) => void): () => void;
       desktop: boolean;
     };
   }

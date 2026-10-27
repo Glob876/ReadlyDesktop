@@ -444,6 +444,9 @@ async function init() {
     (document.querySelector("#error") as HTMLElement).hidden = false;
     return;
   }
+  window.readly.onWindowExpanded((expanded) => {
+    document.documentElement.toggleAttribute("data-window-expanded", expanded);
+  });
   const result = await send({ op: "load" });
   if (result) {
     draft = { ...state.settings };

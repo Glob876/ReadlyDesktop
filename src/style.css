@@ -18,6 +18,9 @@
   --danger: #a64c3e;
   --surface-opacity: 1;
   --poem-size: 24px;
+  --color-transition:
+    color 240ms ease, background-color 240ms ease, border-color 240ms ease,
+    outline-color 240ms ease, box-shadow 240ms ease, accent-color 240ms ease;
   color-scheme: light;
 }
 .library-intro { margin: 12px 0 26px; color: var(--muted); }
@@ -74,6 +77,9 @@
 * {
   box-sizing: border-box;
 }
+*, *::before, *::after {
+  transition: var(--color-transition);
+}
 body {
   margin: 0;
   background: transparent;
@@ -94,7 +100,6 @@ button {
   justify-content: center;
   gap: 9px;
   border-radius: 5px;
-  transition: background 0.12s;
 }
 button:hover {
   background: var(--hover);
@@ -162,6 +167,10 @@ input[type="radio"] {
   border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   border-radius: 10px;
   background: rgb(var(--bg) / var(--surface-opacity));
+}
+:root[data-window-expanded] .window {
+  border-radius: 0;
+  border: 0;
 }
 .titlebar {
   height: 49px;
@@ -292,7 +301,7 @@ input[type="radio"] {
   height: 100%;
   background: var(--accent);
   border-radius: 3px;
-  transition: width 0.25s;
+  transition: width 0.25s, var(--color-transition);
 }
 .sidebar-progress p {
   font-size: 11px;
@@ -858,7 +867,7 @@ main {
   left: 3px;
   border-radius: 50%;
   background: rgb(var(--card));
-  transition: transform 0.15s;
+  transition: transform 0.15s, var(--color-transition);
 }
 .setting-row input:checked + .switch {
   background: var(--accent);
@@ -1136,7 +1145,7 @@ dialog p {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *, *::before, *::after {
     transition: none !important;
   }
 }
