@@ -13,7 +13,7 @@
   --muted: #848a83;
   --border: #dfe3dc;
   --accent: #466b50;
-  --selected: #e5ece3;
+  --selected: color-mix(in srgb, var(--accent) 13%, rgb(var(--bg)));
   --hover: #edf0e9;
   --danger: #a64c3e;
   --surface-opacity: 1;
@@ -53,7 +53,7 @@
   --muted: #939d94;
   --border: #3a423b;
   --accent: #a0bba1;
-  --selected: #334336;
+  --selected: color-mix(in srgb, var(--accent) 18%, rgb(var(--bg)));
   --hover: #303a32;
   --danger: #e4a090;
   color-scheme: dark;
@@ -66,7 +66,7 @@
   --muted: #948b78;
   --border: #e0d6c4;
   --accent: #7a714d;
-  --selected: #e8e2d1;
+  --selected: color-mix(in srgb, var(--accent) 13%, rgb(var(--bg)));
   --hover: #eee6d6;
   --danger: #a0523b;
   color-scheme: light;
@@ -1140,3 +1140,15 @@ dialog p {
     transition: none !important;
   }
 }
+
+.accent-setting { border: 0; padding: 0; margin: 28px 0; min-width: 0; }
+.accent-setting legend { font-size: 14px; font-weight: 600; }
+.accent-options { display: flex; flex-wrap: wrap; gap: 16px 24px; }
+.accent-option { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
+.accent-option input { position: absolute; opacity: 0; width: 40px; height: 40px; margin: 0; }
+.accent-swatch { width: 40px; height: 40px; border-radius: 50%; background: var(--swatch); color: rgb(var(--bg)); display: grid; place-items: center; }
+:root[data-theme="dark"] .accent-swatch { background: var(--swatch-dark); }
+.accent-swatch svg { visibility: hidden; }
+.accent-option input:checked + .accent-swatch { outline: 2px solid var(--accent); outline-offset: 3px; }
+.accent-option input:checked + .accent-swatch svg { visibility: visible; }
+.accent-option input:focus-visible + .accent-swatch { outline: 3px solid var(--text); outline-offset: 4px; }

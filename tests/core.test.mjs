@@ -30,6 +30,7 @@ test("complete lesson, rejected answers, settings and restart persistence", asyn
   try {
     const initial = (await app.request({ op: "load" })).result.state;
     assert.equal(initial.started, false);
+    assert.equal(initial.settings.accent, "green");
     let response = await app.request({
       op: "savePoem",
       poem: {
@@ -57,6 +58,7 @@ test("complete lesson, rejected answers, settings and restart persistence", asyn
       punctuation: true,
       opacity: 75,
       theme: "dark",
+      accent: "purple",
     };
     await app.request({ op: "settings", settings });
     response = await app.request({ op: "submit", answer: "еж идет" });
@@ -66,6 +68,7 @@ test("complete lesson, rejected answers, settings and restart persistence", asyn
     response = await app.request({ op: "load" });
     assert.equal(response.result.state.position, 1);
     assert.equal(response.result.state.settings.opacity, 75);
+    assert.equal(response.result.state.settings.accent, "purple");
     const tasks = response.result.state.tasks;
     for (const task of tasks.slice(1)) {
       response = await app.request({ op: "submit", answer: task.text });
@@ -79,9 +82,36 @@ test("complete lesson, rejected answers, settings and restart persistence", asyn
       settings: { ...settings, opacity: 1 },
     });
     assert.ok(response.error);
+    response = await app.request({ op: "settings", settings: { ...settings, accent: "unknown" } });
+    assert.ok(response.error);
     response = await app.request({ op: "restart" });
     assert.equal(response.result.state.position, 0);
     assert.equal(JSON.parse(await readFile(file, "utf8")).position, 0);
+  } finally {
+    app.child.kill();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("saved settings without an accent retain progress and default to green", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "readly-migration-"));
+  const file = path.join(dir, "progress.json");
+  let app = core(file);
+  try {
+    await app.request({ op: "start" });
+    const initial = (await app.request({ op: "load" })).result.state;
+    await app.request({ op: "submit", answer: initial.tasks[0].text });
+    app.child.kill();
+    const saved = JSON.parse(await readFile(file, "utf8"));
+    delete saved.settings.accent;
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(file, JSON.stringify(saved));
+    app = core(file);
+    const loaded = (await app.request({ op: "load" })).result.state;
+    assert.equal(loaded.settings.accent, "green");
+    assert.equal(loaded.position, 1);
+    assert.equal(loaded.started, true);
+    assert.equal(loaded.poem.text, initial.poem.text);
   } finally {
     app.child.kill();
     await rm(dir, { recursive: true, force: true });

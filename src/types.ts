@@ -5,6 +5,7 @@ export interface Settings {
   strictWhitespace: boolean;
   lineBreaks: boolean;
   theme: "light" | "dark" | "sepia" | "system";
+  accent: "green" | "blue" | "purple" | "rose" | "orange" | "slate";
   opacity: number;
   fontSize: number;
 }

@@ -71,6 +71,7 @@ fn execute(state: &mut Saved, cmd: Command, path: &Path) -> Result<Value, String
         }
         Command::SetSettings { settings } => {
             if !["light", "dark", "sepia", "system"].contains(&settings.theme.as_str())
+                || !["green", "blue", "purple", "rose", "orange", "slate"].contains(&settings.accent.as_str())
                 || !(55..=100).contains(&settings.opacity)
                 || !(18..=34).contains(&settings.font_size)
             {

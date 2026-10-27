@@ -24,10 +24,23 @@ let feedback = "";
 let feedbackType = "";
 let draft: Settings;
 let poemDraft: Poem;
+const accents = [
+  { id: "green", label: "Зелёный", light: "#466b50", dark: "#a0bba1" },
+  { id: "blue", label: "Синий", light: "#3e6694", dark: "#9bbce5" },
+  { id: "purple", label: "Фиолетовый", light: "#72558f", dark: "#c4a9df" },
+  { id: "rose", label: "Розовый", light: "#98516a", dark: "#e0a6ba" },
+  { id: "orange", label: "Оранжевый", light: "#945b2c", dark: "#dfb083" },
+  { id: "slate", label: "Графитовый", light: "#596673", dark: "#afbdca" },
+] as const;
 const system = matchMedia("(prefers-color-scheme: dark)");
 function appearance(s: Settings) {
   document.documentElement.dataset.theme =
     s.theme === "system" ? (system.matches ? "dark" : "light") : s.theme;
+  const accent = accents.find((color) => color.id === s.accent) ?? accents[0];
+  document.documentElement.style.setProperty(
+    "--accent",
+    document.documentElement.dataset.theme === "dark" ? accent.dark : accent.light,
+  );
   document.documentElement.style.setProperty(
     "--surface-opacity",
     String(s.opacity / 100),
@@ -169,7 +182,7 @@ function settings() {
               )
               .join(
                 "",
-              )}</div><label class="range-setting"><span><strong>Непрозрачность фона</strong><small>Прозрачность окна зависит от поддержки композитора системы.</small></span><output id="opacity-value">${draft.opacity}%</output><input aria-label="Непрозрачность фона" type="range" name="opacity" min="55" max="100" value="${draft.opacity}"></label><label class="range-setting"><span><strong>Размер текста стихотворения</strong><small>В образце и поле для ввода.</small></span><output id="font-value">${draft.fontSize} px</output><input aria-label="Размер текста" type="range" name="fontSize" min="18" max="34" value="${draft.fontSize}"></label><div class="font-preview poem-text">Мороз и солнце; день чудесный!</div>${settingsFooter()}</section>`
+              )}</div><fieldset class="accent-setting"><legend>Акцентный цвет</legend><p class="section-description">Цвет кнопок, выделений и индикаторов.</p><div class="accent-options">${accents.map((color) => `<label class="accent-option"><input type="radio" name="accent" value="${color.id}" ${draft.accent === color.id ? "checked" : ""}><span class="accent-swatch" style="--swatch:${color.light};--swatch-dark:${color.dark}" aria-hidden="true">${icon("check")}</span><span>${color.label}</span></label>`).join("")}</div></fieldset><label class="range-setting"><span><strong>Непрозрачность фона</strong><small>Прозрачность окна зависит от поддержки композитора системы.</small></span><output id="opacity-value">${draft.opacity}%</output><input aria-label="Непрозрачность фона" type="range" name="opacity" min="55" max="100" value="${draft.opacity}"></label><label class="range-setting"><span><strong>Размер текста стихотворения</strong><small>В образце и поле для ввода.</small></span><output id="font-value">${draft.fontSize} px</output><input aria-label="Размер текста" type="range" name="fontSize" min="18" max="34" value="${draft.fontSize}"></label><div class="font-preview poem-text">Мороз и солнце; день чудесный!</div>${settingsFooter()}</section>`
     }</form></div>`;
 }
 function settingsFooter() {
@@ -321,6 +334,13 @@ function bind() {
     (input) =>
       (input.onchange = () => {
         draft.theme = input.value as Settings["theme"];
+        appearance(draft);
+      }),
+  );
+  document.querySelectorAll<HTMLInputElement>('[name="accent"]').forEach(
+    (input) =>
+      (input.onchange = () => {
+        draft.accent = input.value as Settings["accent"];
         appearance(draft);
       }),
   );
