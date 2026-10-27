@@ -4,6 +4,7 @@ import { classics, authors, searchClassics } from "./library";
 import corpusLicense from "./data/PoetryCorpus-LICENSE.txt?raw";
 import { icon } from "./icons";
 import { installSmoothCaret } from "./caret";
+import { installSelectionAnimation } from "./selection";
 const escape = (s: string) =>
   s.replace(
     /[&<>"']/g,
@@ -504,6 +505,7 @@ async function init() {
     return;
   }
   installSmoothCaret(root);
+  installSelectionAnimation();
   window.readly.onWindowExpanded((expanded) => {
     document.documentElement.toggleAttribute("data-window-expanded", expanded);
   });

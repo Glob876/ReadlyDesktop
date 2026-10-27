@@ -1209,3 +1209,13 @@ dialog p {
   .caret-overlay { display: none; }
   .has-smooth-caret { caret-color: auto; }
 }
+
+@property --selection-strength {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 32%;
+}
+::selection {
+  background-color: color-mix(in srgb, var(--accent) var(--selection-strength), transparent);
+  color: var(--text);
+}
