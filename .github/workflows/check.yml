@@ -24,7 +24,7 @@ jobs:
       - run: cargo clippy --manifest-path native/Cargo.toml --all-targets -- -D warnings
       - run: ./build.sh --pack-only
       - run: npm test
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install-deps chromium
       - run: sudo apt-get install -y xfwm4
       - name: Test desktop in X11 with a window manager
         run: |
