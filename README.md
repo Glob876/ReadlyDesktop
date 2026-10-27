@@ -38,7 +38,9 @@ npm start
 
 В Linux скрипт добавляет `~/.local/bin` в PATH через `~/.profile` и `~/.bashrc`; для активной оболочки Zsh/Fish также обновляет её настройки. В Windows добавляется пользовательский PATH. Откройте новый терминал после установки; в Windows перезапустите приложение терминала целиком, если оно ещё использует старое окружение. Для запуска в уже открытом Bash можно выполнить `source ~/.bashrc`.
 
-В Windows запускайте `./build.sh` из **Git Bash**, используя Windows-версии Node.js и Rust. Для стандартного Rust MSVC нужны [Visual Studio Build Tools с компонентом «Разработка классических приложений на C++»](https://learn.microsoft.com/en-us/windows/dev-environment/rust/setup). WSL определяется как Linux и собирает Linux-версию.
+В Windows запускайте `./build.sh` из **Git Bash**, используя Windows-версии Node.js и Rust MSVC. Rust вместе с Cargo можно установить командой `winget install --exact --id Rustlang.Rustup`. Также нужны **Visual Studio Build Tools 2022** с компонентом **«Разработка классических приложений на C++»** и Windows SDK ([инструкция по установке](https://learn.microsoft.com/en-us/windows/dev-environment/rust/setup)). После установки полностью закройте терминал и откройте Git Bash заново.
+
+Команды `npm run build`, `npm run dev` и `npm test` автоматически находят Visual Studio 2022 через `vswhere`, загружают окружение `VsDevCmd.bat` и передают Cargo полный путь к Microsoft `link.exe`. Поэтому `link.exe` из Git Bash не перехватывает линковку, а запускать сборку из Developer Command Prompt вручную не требуется. При отсутствии инструментов сборка останавливается с пояснением. Если установлен Rust GNU, переключитесь на MSVC: для Windows x64 выполните `rustup default stable-x86_64-pc-windows-msvc`. WSL определяется как Linux и собирает Linux-версию; кросс-сборка `--windows` из Linux использует MinGW отдельно.
 
 Только переносимая сборка, без установки и изменений PATH:
 

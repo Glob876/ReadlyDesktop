@@ -1,7 +1,9 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "vite";
+import { runCargo } from "./cargo.mjs";
+const cargoStatus = runCargo(["build", "--release", "--manifest-path", "native/Cargo.toml"]);
+if (cargoStatus !== 0) process.exit(cargoStatus);
 for (const [cmd, args] of [
-  ["cargo", ["build", "--release", "--manifest-path", "native/Cargo.toml"]],
   ["npx", ["tsc", "-p", "electron/tsconfig.json"]],
 ]) {
   const build = spawnSync(cmd, args, {
