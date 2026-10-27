@@ -11,10 +11,15 @@ pub struct Settings {
     pub strict_whitespace: bool,
     pub line_breaks: bool,
     pub theme: String,
+    #[serde(default = "default_accent")]
+    pub accent: String,
     pub opacity: u8,
     pub font_size: u8,
     pub font_family: String,
     pub line_height: f64,
+}
+fn default_accent() -> String {
+    "green".into()
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -25,6 +30,7 @@ impl Default for Settings {
             strict_whitespace: false,
             line_breaks: true,
             theme: "light".into(),
+            accent: default_accent(),
             opacity: 100,
             font_size: 24,
             font_family: "serif".into(),

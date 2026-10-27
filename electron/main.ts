@@ -61,6 +61,15 @@ function createWindow() {
       renameSync(file + ".tmp", file);
     } catch (error) { console.warn("Не удалось сохранить положение окна:", error); }
   });
+  const window = win;
+  const syncWindowState = () => {
+    window.webContents.send("readly:window-expanded", window.isMaximized() || window.isFullScreen());
+  };
+  window.on("maximize", syncWindowState);
+  window.on("unmaximize", syncWindowState);
+  window.on("enter-full-screen", syncWindowState);
+  window.on("leave-full-screen", syncWindowState);
+  window.webContents.on("did-finish-load", syncWindowState);
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https://")) void shell.openExternal(url);
     return { action: "deny" };

@@ -4,6 +4,8 @@ import { classics, authors, searchClassics } from "./library";
 import corpusLicense from "./data/PoetryCorpus-LICENSE.txt?raw";
 import { icon } from "./icons";
 import { html as escape, personal, review, statistics, planControls, dataSettings } from "./features";
+import { installSmoothCaret } from "./caret";
+import { installSelectionAnimation } from "./selection";
 const root = document.querySelector<HTMLDivElement>("#app")!;
 let state: State;
 let page: "home" | "learn" | "settings" | "library" | "personal" | "review" | "statistics" = "home";
@@ -40,10 +42,23 @@ let feedback = "";
 let feedbackType = "";
 let draft: Settings;
 let poemDraft: Poem;
+const accents = [
+  { id: "green", label: "Зелёный", light: "#466b50", dark: "#a0bba1" },
+  { id: "blue", label: "Синий", light: "#3e6694", dark: "#9bbce5" },
+  { id: "purple", label: "Фиолетовый", light: "#72558f", dark: "#c4a9df" },
+  { id: "rose", label: "Розовый", light: "#98516a", dark: "#e0a6ba" },
+  { id: "orange", label: "Оранжевый", light: "#945b2c", dark: "#dfb083" },
+  { id: "slate", label: "Графитовый", light: "#596673", dark: "#afbdca" },
+] as const;
 const system = matchMedia("(prefers-color-scheme: dark)");
 function appearance(s: Settings) {
   document.documentElement.dataset.theme =
     s.theme === "system" ? (system.matches ? "dark" : "light") : s.theme;
+  const accent = accents.find((color) => color.id === s.accent) ?? accents[0];
+  document.documentElement.style.setProperty(
+    "--accent",
+    document.documentElement.dataset.theme === "dark" ? accent.dark : accent.light,
+  );
   document.documentElement.style.setProperty(
     "--surface-opacity",
     String(s.opacity / 100),
@@ -114,20 +129,75 @@ function count(n: number, forms: [string, string, string]) {
   const teen = n % 100 >= 11 && n % 100 <= 14;
   return `${n} ${forms[teen ? 2 : last === 1 ? 0 : last >= 2 && last <= 4 ? 1 : 2]}`;
 }
-function render() {
+let navigationObserver: ResizeObserver | undefined;
+function render(transition?: "page" | "tab") {
+  navigationObserver?.disconnect();
+  const previousNav = document.querySelector(".nav-indicator")?.getBoundingClientRect();
+  const previousTab = document.querySelector(".tab-indicator")?.getBoundingClientRect();
   appearance(page === "settings" ? draft : state.settings);
   root.innerHTML = `<div class="window ${focusMode && page === "learn" ? "focus-mode" : ""}"><header class="titlebar"><div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>Readly</span></div><span class="window-caption">Стихотворения</span>${window.readly.desktop ? `<div class="window-controls"><button data-window="minimize" aria-label="Свернуть">${icon("minus")}</button><button data-window="maximize" aria-label="Развернуть">${icon("square")}</button><button data-window="close" aria-label="Закрыть">${icon("close")}</button></div>` : '<span class="preview-label">Предпросмотр</span>'}</header>
     <div class="workspace"><aside class="sidebar"><div class="nav-label">БИБЛИОТЕКА</div><button data-page="personal" class="nav-item ${page === "personal" ? "active" : ""}">${icon("library")}Мои стихотворения</button><nav aria-label="Основная навигация"><button data-page="home" class="nav-item ${page === "home" ? "active" : ""}">${icon("book")}<span>Стихотворение</span></button><button data-page="learn" class="nav-item ${page === "learn" ? "active" : ""}">${icon("feather")}<span>Занятие</span>${state.started && state.position < state.tasks.length ? '<span class="nav-dot"></span>' : ""}</button></nav>
     <button data-page="library" class="nav-item ${page === "library" ? "active" : ""}">${icon("library")}<span>Классика</span></button>
     <button data-page="review" class="nav-item ${page === "review" ? "active" : ""}">${icon("repeat")}Повторение</button><button data-page="statistics" class="nav-item ${page === "statistics" ? "active" : ""}">${icon("check")}Статистика</button>
     <div class="sidebar-progress"><div class="progress-caption"><span>Пройдено строф</span><span>${learned()} / ${state.stanzas.length}</span></div><div class="progress-track"><div style="width:${state.stanzas.length ? (learned() / state.stanzas.length) * 100 : 0}%"></div></div><p>${state.position === state.tasks.length ? "Занятие завершено" : state.started ? "Прогресс сохранён" : "Занятие ещё не начато"}</p></div>
-    <div class="sidebar-bottom"><button data-page="settings" class="nav-item ${page === "settings" ? "active" : ""}">${icon("settings")}Настройки</button><button id="help" class="nav-item">${icon("help")}Как заниматься</button><div class="local-note"><span class="status-dot"></span>Локально на компьютере</div></div></aside>
+    <div class="sidebar-bottom"><button data-page="settings" class="nav-item ${page === "settings" ? "active" : ""}">${icon("settings")}Настройки</button><button id="help" class="nav-item">${icon("help")}Как заниматься</button></div></aside>
     <main id="main"><div id="error" class="error-banner" role="alert" hidden></div>${state.recovery ? recoveryScreen() : page === "home" ? home() : page === "learn" ? lesson() : page === "library" ? library() : page === "personal" ? personal(state, personalQuery, personalFilter) : page === "review" ? review(state) : page === "statistics" ? statistics(state) : settings()}</main></div><footer class="statusbar"><span>${count(state.stanzas.length, ["строфа", "строфы", "строф"])} <span class="dot-separator">·</span> ${count(state.stanzas.flat().length, ["строка", "строки", "строк"])}</span><span>${page === "learn" ? "Ctrl + Enter — проверить" : "Readly · 0.1.0"}</span></footer></div><dialog id="dialog"></dialog>`;
   bind();
   const answer = document.querySelector<HTMLTextAreaElement>("#answer");
   if (answer) {
     answer.value = currentAnswer();
     answer.dispatchEvent(new Event("input"));
+  }
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  for (const [containerSelector, activeSelector, className, previous] of [
+    [".sidebar", ".nav-item.active", "nav-indicator", previousNav],
+    [".tabs", "button.selected", "tab-indicator", previousTab],
+  ] as const) {
+    const container = document.querySelector<HTMLElement>(containerSelector);
+    const selected = container?.querySelector<HTMLElement>(activeSelector);
+    if (!container || !selected) continue;
+    const bounds = selected.getBoundingClientRect();
+    const parent = container.getBoundingClientRect();
+    const indicator = document.createElement("span");
+    indicator.className = className;
+    indicator.setAttribute("aria-hidden", "true");
+    Object.assign(indicator.style, {
+      left: `${bounds.left - parent.left}px`,
+      top: `${bounds.top - parent.top + (className === "tab-indicator" ? bounds.height - 2 : 0)}px`,
+      width: `${bounds.width}px`, height: className === "tab-indicator" ? "2px" : `${bounds.height}px`,
+    });
+    container.append(indicator);
+    if (transition && previous && !reducedMotion) {
+      const current = indicator.getBoundingClientRect();
+      indicator.animate([
+        { transform: `translate(${previous.left - current.left}px, ${previous.top - current.top}px) scale(${previous.width / current.width}, ${previous.height / current.height})` },
+        { transform: "none" },
+      ], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" });
+    }
+  }
+  navigationObserver = new ResizeObserver(() => {
+    for (const [containerSelector, selectedSelector, indicatorSelector] of [
+      [".sidebar", ".nav-item.active", ".nav-indicator"],
+      [".tabs", "button.selected", ".tab-indicator"],
+    ]) {
+      const container = document.querySelector<HTMLElement>(containerSelector);
+      const selected = container?.querySelector<HTMLElement>(selectedSelector);
+      const indicator = container?.querySelector<HTMLElement>(indicatorSelector);
+      if (!container || !selected || !indicator) continue;
+      const bounds = selected.getBoundingClientRect();
+      const parent = container.getBoundingClientRect();
+      Object.assign(indicator.style, {
+        left: `${bounds.left - parent.left}px`,
+        top: `${bounds.top - parent.top + (indicatorSelector === ".tab-indicator" ? bounds.height - 2 : 0)}px`,
+        width: `${bounds.width}px`,
+        height: indicatorSelector === ".tab-indicator" ? "2px" : `${bounds.height}px`,
+      });
+    }
+  });
+  document.querySelectorAll(".sidebar, .tabs").forEach((element) => navigationObserver!.observe(element));
+  if (transition && !reducedMotion) {
+    document.querySelector(transition === "tab" ? "#settings-form" : "#main > .page, #main > .empty-state")
+      ?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
   }
 }
 function home() {
@@ -221,7 +291,7 @@ function settings() {
               )
               .join(
                 "",
-              )}</div><label class="range-setting"><span><strong>Непрозрачность фона</strong><small>Прозрачность окна зависит от поддержки композитора системы.</small></span><output id="opacity-value">${draft.opacity}%</output><input aria-label="Непрозрачность фона" type="range" name="opacity" min="55" max="100" value="${draft.opacity}"></label><label class="range-setting"><span><strong>Размер текста стихотворения</strong><small>В образце и поле для ввода.</small></span><output id="font-value">${draft.fontSize} px</output><input aria-label="Размер текста" type="range" name="fontSize" min="18" max="34" value="${draft.fontSize}"></label><label class="range-setting"><span><strong>Шрифт</strong></span><select name="fontFamily">${[["serif","С засечками"],["sans","Без засечек"],["mono","Моноширинный"]].map(([v,l])=>`<option value="${v}" ${draft.fontFamily===v?"selected":""}>${l}</option>`).join("")}</select></label><label class="range-setting"><span><strong>Межстрочный интервал</strong></span><output id="line-height-value">${draft.lineHeight}</output><input name="lineHeight" type="range" min="1.2" max="2.4" step="0.1" value="${draft.lineHeight}" aria-label="Межстрочный интервал"></label><div class="font-preview poem-text">Мороз и солнце; день чудесный!</div>${settingsFooter()}</section>`
+              )}</div><fieldset class="accent-setting"><legend>Акцентный цвет</legend><p class="section-description">Цвет кнопок, выделений и индикаторов.</p><div class="accent-options">${accents.map((color) => `<label class="accent-option"><input type="radio" name="accent" value="${color.id}" ${draft.accent === color.id ? "checked" : ""}><span class="accent-swatch" style="--swatch:${color.light};--swatch-dark:${color.dark}" aria-hidden="true">${icon("check")}</span><span>${color.label}</span></label>`).join("")}</div></fieldset><label class="range-setting"><span><strong>Непрозрачность фона</strong><small>Прозрачность окна зависит от поддержки композитора системы.</small></span><output id="opacity-value">${draft.opacity}%</output><input aria-label="Непрозрачность фона" type="range" name="opacity" min="55" max="100" value="${draft.opacity}"></label><label class="range-setting"><span><strong>Размер текста стихотворения</strong><small>В образце и поле для ввода.</small></span><output id="font-value">${draft.fontSize} px</output><input aria-label="Размер текста" type="range" name="fontSize" min="18" max="34" value="${draft.fontSize}"></label><label class="range-setting"><span><strong>Шрифт</strong></span><select name="fontFamily">${[["serif","С засечками"],["sans","Без засечек"],["mono","Моноширинный"]].map(([v,l])=>`<option value="${v}" ${draft.fontFamily===v?"selected":""}>${l}</option>`).join("")}</select></label><label class="range-setting"><span><strong>Межстрочный интервал</strong></span><output id="line-height-value">${draft.lineHeight}</output><input name="lineHeight" type="range" min="1.2" max="2.4" step="0.1" value="${draft.lineHeight}" aria-label="Межстрочный интервал"></label><div class="font-preview poem-text">Мороз и солнце; день чудесный!</div>${settingsFooter()}</section>`
     }</form></div>`;
 }
 function settingsFooter() {
@@ -239,7 +309,7 @@ async function navigate(next: typeof page, saveAnswer = true) {
   poemDraft = { ...state.poem };
   feedback = "";
   differences = [];
-  render();
+  render("page");
   if (page === "learn") document.querySelector<HTMLTextAreaElement>("#answer")?.focus();
   else { const heading=document.querySelector<HTMLElement>("main h1"); heading?.setAttribute("tabindex","-1"); heading?.focus(); }
 }
@@ -372,8 +442,11 @@ function bind() {
   document.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach(
     (b) =>
       (b.onclick = () => {
-        settingsTab = b.dataset.tab as typeof settingsTab;
-        render();
+        const next = b.dataset.tab as typeof settingsTab;
+        if (settingsTab === next) return;
+        settingsTab = next;
+        render("tab");
+        document.querySelector<HTMLButtonElement>(`[data-tab="${next}"]`)?.focus({ preventScroll: true });
       }),
   );
   document.querySelectorAll<HTMLInputElement>("[data-setting]").forEach(
@@ -387,6 +460,13 @@ function bind() {
     (input) =>
       (input.onchange = () => {
         draft.theme = input.value as Settings["theme"];
+        appearance(draft);
+      }),
+  );
+  document.querySelectorAll<HTMLInputElement>('[name="accent"]').forEach(
+    (input) =>
+      (input.onchange = () => {
+        draft.accent = input.value as Settings["accent"];
         appearance(draft);
       }),
   );
@@ -636,6 +716,11 @@ async function init() {
     (document.querySelector("#error") as HTMLElement).hidden = false;
     return;
   }
+  installSmoothCaret(root);
+  installSelectionAnimation();
+  window.readly.onWindowExpanded((expanded) => {
+    document.documentElement.toggleAttribute("data-window-expanded", expanded);
+  });
   const result = await send({ op: "load" });
   if (result) {
     draft = { ...state.settings };

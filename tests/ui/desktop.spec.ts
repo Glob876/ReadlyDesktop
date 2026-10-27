@@ -15,6 +15,7 @@ test("desktop: poem editing, full lesson, hints, appearance and persistence", as
     await expect(
       page.getByRole("heading", { name: "Зимнее утро", exact: true }),
     ).toBeVisible();
+    await expect(page.getByText("Локально на компьютере", { exact: true })).toHaveCount(0);
     await page.screenshot({ path: "test-results/home.png" });
     await page.getByRole("button", { name: "Изменить текст" }).click();
     await page.locator("[name=title]").fill("Проверка");
@@ -62,7 +63,13 @@ test("desktop: poem editing, full lesson, hints, appearance and persistence", as
     ).toBeVisible();
     await page.getByRole("button", { name: "Настройки", exact: true }).click();
     await page.getByRole("tab", { name: "Оформление" }).click();
+    await page.getByRole("radio", { name: "Синий", exact: true }).check();
+    await expect(page.locator(".primary").first()).toHaveCSS("background-color", "rgb(62, 102, 148)");
+    await page.getByRole("button", { name: "Отменить", exact: true }).click();
+    await expect(page.getByRole("radio", { name: "Зелёный", exact: true })).toBeChecked();
+    await page.getByRole("radio", { name: "Фиолетовый", exact: true }).check();
     await page.getByText("Тёмная", { exact: true }).click();
+    await expect(page.locator(".primary").first()).toHaveCSS("background-color", "rgb(196, 169, 223)");
     await page.locator("[name=opacity]").evaluate((el: HTMLInputElement) => {
       el.value = "75";
       el.dispatchEvent(new Event("input", { bubbles: true }));
@@ -80,6 +87,7 @@ test("desktop: poem editing, full lesson, hints, appearance and persistence", as
       page.getByRole("heading", { name: "Проверка", exact: true }),
     ).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator(".primary").first()).toHaveCSS("background-color", "rgb(196, 169, 223)");
     await expect(
       page.getByRole("heading", {name: "Занятие завершено", exact: true}),
     ).toBeVisible();
