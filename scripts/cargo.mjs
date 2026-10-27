@@ -18,7 +18,7 @@ function mergeEnvironment(base, entries) {
 
 const get = (env, name) => Object.entries(env).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1];
 
-export function cargoEnvironment({
+export function msvcEnvironment({
   platform = process.platform, arch = process.arch, env = process.env,
   run = execFileSync, exists = existsSync,
 } = {}) {
@@ -30,13 +30,9 @@ export function cargoEnvironment({
   }[arch];
   if (!architecture) throw new Error(`Неподдерживаемая архитектура Windows: ${arch}`);
   const [target, vcArch] = architecture;
-  const host = run("rustc", ["-vV"], { env, encoding: "utf8" }).match(/^host: (\S+)/m)?.[1];
-  if (host !== target) {
-    throw new Error(`Для Windows нужен Rust MSVC (${target}). Выполните: rustup default stable-${target}`);
-  }
   const programFiles = get(env, "ProgramFiles(x86)") || get(env, "ProgramFiles") || "C:\\Program Files (x86)";
   const vswhere = path.win32.join(programFiles, "Microsoft Visual Studio", "Installer", "vswhere.exe");
-  const missingTools = 'Установите Visual Studio Build Tools 2022 с компонентом «Разработка классических приложений на C++» и Windows SDK.';
+  const missingTools = 'Не найдены Visual Studio Build Tools 2022 с C++ и Windows SDK. Запустите build.cmd для автоматической установки.';
   if (!exists(vswhere)) throw new Error(missingTools);
   const component = arch === "arm64"
     ? "Microsoft.VisualStudio.Component.VC.Tools.ARM64"
@@ -65,6 +61,19 @@ export function cargoEnvironment({
   const linker = path.win32.join(tools, "bin", `Host${vcArch}`, vcArch, "link.exe");
   if (!exists(linker)) throw new Error(`Не найден линкер MSVC: ${linker}. ${missingTools}`);
   return mergeEnvironment(configured, [[`CARGO_TARGET_${target.toUpperCase().replaceAll("-", "_")}_LINKER`, linker]]);
+}
+
+export function cargoEnvironment(options = {}) {
+  const { platform = process.platform, arch = process.arch, env = process.env, run = execFileSync } = options;
+  if (platform !== "win32") return env;
+  const target = { x64: "x86_64", arm64: "aarch64", ia32: "i686" }[arch];
+  if (!target) throw new Error(`Неподдерживаемая архитектура Windows: ${arch}`);
+  const expected = `${target}-pc-windows-msvc`;
+  const host = run("rustc", ["-vV"], { env, encoding: "utf8" }).match(/^host: (\S+)/m)?.[1];
+  if (host !== expected) {
+    throw new Error(`Для Windows нужен Rust MSVC (${expected}). Выполните: rustup default stable-${expected}`);
+  }
+  return msvcEnvironment(options);
 }
 
 export function runCargo(args) {

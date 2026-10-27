@@ -57,3 +57,19 @@ esac
     assert.equal(await f.calls(), `<exec><--yes><--package=node@24><--><bash><${f.dir}/build.sh><--windows>\n`);
   } finally { await rm(f.dir, { recursive: true, force: true }); }
 });
+
+test("Git Bash delegates Windows bootstrap before checking Node/Cargo and forwards failure", { skip: process.platform !== "linux" }, async () => {
+  const f = await fixture();
+  try {
+    await writeFile(path.join(f.bin, "uname"), '#!/bin/sh\nprintf "MINGW64_NT-10.0\\n"\n', { mode: 0o755 });
+    await writeFile(path.join(f.bin, "cygpath"), '#!/bin/sh\nprintf "%s\\n" "$2"\n', { mode: 0o755 });
+    await writeFile(path.join(f.bin, "powershell.exe"), '#!/bin/sh\nprintf "<%s>" "$@" >> calls\nexit 37\n', { mode: 0o755 });
+    await writeFile(path.join(f.bin, "node"), '#!/bin/sh\nexit 99\n', { mode: 0o755 });
+    assert.equal(f.run("--pack-only").status, 37);
+    assert.equal(await f.calls(), `<-NoProfile><-ExecutionPolicy><Bypass><-File><${f.dir}/scripts/build-windows.ps1><--pack-only>`);
+    const before = await f.calls();
+    assert.equal(f.run("--windows").status, 1);
+    assert.equal(f.run("--help").status, 0);
+    assert.equal(await f.calls(), before);
+  } finally { await rm(f.dir, { recursive: true, force: true }); }
+});

@@ -16,6 +16,17 @@ for argument in "$@"; do
   esac
 done
 
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    if [[ "$windows_build" == 1 ]]; then
+      printf '%s\n' '--windows предназначен для сборки из Linux. В Windows используйте --pack-only.' >&2
+      exit 1
+    fi
+    # PowerShell can install Node before any Node-based scripts are available.
+    exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$PWD/scripts/build-windows.ps1")" "$@"
+    ;;
+esac
+
 for command in node npm cargo; do
   if ! command -v "$command" >/dev/null 2>&1; then
     printf 'Для сборки Readly требуется %s. См. README.md.\n' "$command" >&2
