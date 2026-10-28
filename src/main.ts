@@ -1,4 +1,5 @@
 import "./style.css";
+import { installRangeStyles } from "./ranges";
 import "./themes.css";
 import { applyColorTheme, selectedTheme, themeControls, bindThemePicker, refreshThemePicker } from "./themes";
 import "./splash.css";
@@ -710,6 +711,7 @@ async function init() {
     (document.querySelector("#error") as HTMLElement).hidden = false;
     return;
   }
+  installRangeStyles(root);
   installSmoothCaret(root);
   installSelectionAnimation();
   window.readly.onWindowExpanded((expanded) => {

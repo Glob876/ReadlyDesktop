@@ -1,0 +1,52 @@
+.range-setting input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 24px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+  --range-track: linear-gradient(to right, var(--accent) 0% var(--range-progress, 0%), var(--border) var(--range-progress, 0%) 100%);
+}
+.range-setting input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--range-track);
+}
+.range-setting input[type="range"]::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--range-track);
+}
+.range-setting input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4.5px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  transition: transform 140ms ease, box-shadow 140ms ease, background-color 240ms ease;
+}
+.range-setting input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  transition: transform 140ms ease, box-shadow 140ms ease, background-color 240ms ease;
+}
+.range-setting input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.15); }
+.range-setting input[type="range"]:hover::-moz-range-thumb { transform: scale(1.15); }
+.range-setting input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 24%, transparent); }
+.range-setting input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 24%, transparent); }
+@media (forced-colors: active) {
+  .range-setting input[type="range"] { --range-track: CanvasText; }
+  .range-setting input[type="range"]::-webkit-slider-thumb { background: Highlight; }
+  .range-setting input[type="range"]::-moz-range-thumb { background: Highlight; }
+}
