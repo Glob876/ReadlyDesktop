@@ -1,4 +1,6 @@
 import "./style.css";
+import "./splash.css";
+import { showSplash } from "./splash";
 import { textFonts } from "./fonts";
 import type { Command, State, Settings, Poem, Plan, Difference, Result } from "./types";
 import { classics, authors, searchClassics } from "./library";
@@ -709,9 +711,11 @@ function clearLocalAnswers() {
   for (const key of Object.keys(localStorage)) if (key.startsWith("readly-answer:")) localStorage.removeItem(key);
 }
 async function init() {
+  const splash = showSplash(root);
   root.innerHTML =
     '<div class="loading"><span>Readly</span><p>Открываем стихотворение…</p><div id="error" role="alert" hidden></div></div>';
   if (!window.readly) {
+    splash.dismiss();
     document.querySelector("#error")!.textContent =
       "Откройте приложение командой npm run dev. Для работы нужен Rust-процесс через Electron.";
     (document.querySelector("#error") as HTMLElement).hidden = false;
@@ -728,6 +732,9 @@ async function init() {
     poemDraft = { ...state.poem };
     selectedPlan = structuredClone(state.plan);
     render();
+    void splash.reveal();
+  } else {
+    splash.dismiss();
   }
 }
 void init();

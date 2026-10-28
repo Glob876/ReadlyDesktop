@@ -1,0 +1,38 @@
+.startup-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  border-radius: 10px;
+  -webkit-app-region: drag;
+}
+:root[data-window-expanded] .startup-splash { border-radius: 0; }
+#app[data-starting] .brand-mark { visibility: hidden; }
+.startup-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(var(--bg));
+}
+.startup-logo {
+  position: absolute;
+  width: min(58vw, 58vh, 440px);
+  aspect-ratio: 1;
+  left: 50%;
+  top: 50%;
+  margin-left: calc(min(58vw, 58vh, 440px) / -2);
+  margin-top: calc(min(58vw, 58vh, 440px) / -2);
+  background: var(--text);
+  mask: url("../assets/icon.svg") center / contain no-repeat;
+  will-change: transform;
+}
+.startup-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, #33734c 0%, #72b848 20%, #caf477 38%, #4e9e50 55%, #b4e965 72%, #33734c 100%);
+  background-size: 300% 100%;
+}
+.startup-splash, .startup-splash * { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .startup-logo { width: 80px; margin: -40px; }
+  .startup-shimmer { display: none; }
+}
