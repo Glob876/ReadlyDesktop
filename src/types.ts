@@ -6,6 +6,7 @@ export interface Settings {
   distinguishYo: boolean;
   strictWhitespace: boolean;
   lineBreaks: boolean;
+  colorTheme: import("./themes").ColorTheme;
   theme: "light" | "dark" | "sepia" | "system";
   accent: "green" | "blue" | "purple" | "rose" | "orange" | "slate";
   opacity: number;

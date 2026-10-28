@@ -11,6 +11,7 @@ pub struct Settings {
     pub strict_whitespace: bool,
     pub line_breaks: bool,
     pub theme: String,
+    pub color_theme: String,
     #[serde(default = "default_accent")]
     pub accent: String,
     pub opacity: u8,
@@ -30,6 +31,7 @@ impl Default for Settings {
             strict_whitespace: false,
             line_breaks: true,
             theme: "light".into(),
+            color_theme: "readly".into(),
             accent: default_accent(),
             opacity: 100,
             font_size: 24,
@@ -127,6 +129,11 @@ pub struct Saved {
 }
 impl Saved {
     pub fn migrate(&mut self) -> Result<(), String> {
+        // Older profiles stored sepia as a brightness mode.
+        if self.settings.theme == "sepia" {
+            self.settings.theme = "light".into();
+            self.settings.color_theme = "sepia".into();
+        }
         if self.schema_version > 1 {
             return Err("Формат сохранения новее поддерживаемого.".into());
         }

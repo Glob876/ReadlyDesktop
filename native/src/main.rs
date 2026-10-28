@@ -190,6 +190,16 @@ fn validate(state: &mut Saved) -> Result<(), String> {
 }
 fn validate_settings(s: &Settings) -> Result<(), String> {
     if !["light", "dark", "sepia", "system"].contains(&s.theme.as_str())
+        || ![
+            "readly",
+            "sepia",
+            "github",
+            "catppuccin",
+            "matrix",
+            "gruvbox",
+            "nord",
+        ]
+        .contains(&s.color_theme.as_str())
         || !["green", "blue", "purple", "rose", "orange", "slate"].contains(&s.accent.as_str())
         || !(55..=100).contains(&s.opacity)
         || !(18..=34).contains(&s.font_size)

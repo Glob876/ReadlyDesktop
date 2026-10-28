@@ -1,4 +1,6 @@
 import "./style.css";
+import "./themes.css";
+import { applyColorTheme, selectedTheme, themeControls, bindThemePicker, refreshThemePicker } from "./themes";
 import "./splash.css";
 import { showSplash } from "./splash";
 import { textFonts } from "./fonts";
@@ -55,13 +57,13 @@ const accents = [
 ] as const;
 const system = matchMedia("(prefers-color-scheme: dark)");
 function appearance(s: Settings) {
-  document.documentElement.dataset.theme =
-    s.theme === "system" ? (system.matches ? "dark" : "light") : s.theme;
-  const accent = accents.find((color) => color.id === s.accent) ?? accents[0];
-  document.documentElement.style.setProperty(
-    "--accent",
-    document.documentElement.dataset.theme === "dark" ? accent.dark : accent.light,
-  );
+  applyColorTheme(s);
+  if (selectedTheme(s).id === "readly") {
+    const accent = accents.find((color) => color.id === s.accent) ?? accents[0];
+    document.documentElement.style.setProperty("--accent",
+      document.documentElement.dataset.theme === "dark" ? accent.dark : accent.light);
+  }
+  refreshThemePicker(s);
   document.documentElement.style.setProperty(
     "--surface-opacity",
     String(s.opacity / 100),
@@ -280,21 +282,7 @@ function settings() {
         ? `<section class="settings-section"><h2>Текст для заучивания</h2><p class="section-description">Отделяйте строфы пустой строкой. Каждая строка изучается отдельно.</p><div class="field-grid"><label>Название<input name="title" maxlength="200" value="${escape(poemDraft.title)}" required></label><label>Автор<input name="author" maxlength="200" value="${escape(poemDraft.author)}"></label></div><label class="text-label">Стихотворение<textarea name="poem" class="poem-editor" required maxlength="100000" spellcheck="false">${escape(poemDraft.text)}</textarea></label><p class="form-note">Текст сохранится отдельной записью. Прогресс других стихотворений останется в библиотеке.</p><div class="form-footer"><span id="save-status" role="status"></span><button class="primary" type="submit">Сохранить стихотворение${icon("check")}</button></div></section>`
         : settingsTab === "checking"
           ? `<section class="settings-section"><h2>Правила сравнения</h2><p class="section-description">Выберите, какие различия считать ошибками.</p>${toggle("caseSensitive", "Учитывать регистр", "«Мороз» и «мороз» — разные слова.")}${toggle("punctuation", "Учитывать знаки препинания", "Проверять запятые, точки, тире и другие знаки.")}${toggle("distinguishYo", "Различать ё и е", "«Ещё» и «еще» — разные слова.")}${toggle("lineBreaks", "Учитывать переносы строк", "Сохранять разделение стихотворения на строки.")}${toggle("strictWhitespace", "Точные пробелы и отступы", "Лишние пробелы и пустые строки считаются ошибкой.")}<p class="form-note">Если точные пробелы отключены, повторные пробелы и пустые строки игнорируются.</p>${settingsFooter()}</section>`
-          : `<section class="settings-section"><h2>Тема</h2><p class="section-description">Цвета интерфейса и вид текста.</p><div class="theme-options">${(
-              [
-                ["light", "Светлая"],
-                ["dark", "Тёмная"],
-                ["sepia", "Сепия"],
-                ["system", "Системная"],
-              ] as const
-            )
-              .map(
-                ([v, label]) =>
-                  `<label class="theme-option"><input type="radio" name="theme" value="${v}" ${draft.theme === v ? "checked" : ""}><span class="theme-swatch ${v}"><i></i><b></b><b></b><b></b></span><span>${label}</span></label>`,
-              )
-              .join(
-                "",
-              )}</div><fieldset class="accent-setting"><legend>Акцентный цвет</legend><p class="section-description">Цвет кнопок, выделений и индикаторов.</p><div class="accent-options">${accents.map((color) => `<label class="accent-option"><input type="radio" name="accent" value="${color.id}" ${draft.accent === color.id ? "checked" : ""}><span class="accent-swatch" style="--swatch:${color.light};--swatch-dark:${color.dark}" aria-hidden="true">${icon("check")}</span><span>${color.label}</span></label>`).join("")}</div></fieldset><label class="range-setting"><span><strong>Непрозрачность фона</strong><small>Прозрачность окна зависит от поддержки композитора системы.</small></span><output id="opacity-value">${draft.opacity}%</output><input aria-label="Непрозрачность фона" type="range" name="opacity" min="55" max="100" value="${draft.opacity}"></label><label class="range-setting"><span><strong>Размер текста стихотворения</strong><small>В образце и поле для ввода.</small></span><output id="font-value">${draft.fontSize} px</output><input aria-label="Размер текста" type="range" name="fontSize" min="18" max="34" value="${draft.fontSize}"></label><label class="range-setting"><span><strong>Шрифт</strong></span><select name="fontFamily">${textFonts.map(({id:v,label:l})=>`<option value="${v}" ${draft.fontFamily===v?"selected":""}>${l}</option>`).join("")}</select></label><label class="range-setting"><span><strong>Межстрочный интервал</strong></span><output id="line-height-value">${draft.lineHeight}</output><input name="lineHeight" type="range" min="1.2" max="2.4" step="0.1" value="${draft.lineHeight}" aria-label="Межстрочный интервал"></label><div class="font-preview poem-text">Мороз и солнце; день чудесный!</div>${settingsFooter()}</section>`
+          : `<section class="settings-section"><h2>Тема</h2><p class="section-description">Цвета интерфейса и вид текста.</p>${themeControls(draft)}<fieldset class="accent-setting"><legend>Акцентный цвет</legend><p class="section-description">Цвет кнопок, выделений и индикаторов.</p><div class="accent-options">${accents.map((color) => `<label class="accent-option"><input type="radio" name="accent" value="${color.id}" ${draft.accent === color.id ? "checked" : ""}><span class="accent-swatch" style="--swatch:${color.light};--swatch-dark:${color.dark}" aria-hidden="true">${icon("check")}</span><span>${color.label}</span></label>`).join("")}</div></fieldset><label class="range-setting"><span><strong>Непрозрачность фона</strong><small>Прозрачность окна зависит от поддержки композитора системы.</small></span><output id="opacity-value">${draft.opacity}%</output><input aria-label="Непрозрачность фона" type="range" name="opacity" min="55" max="100" value="${draft.opacity}"></label><label class="range-setting"><span><strong>Размер текста стихотворения</strong><small>В образце и поле для ввода.</small></span><output id="font-value">${draft.fontSize} px</output><input aria-label="Размер текста" type="range" name="fontSize" min="18" max="34" value="${draft.fontSize}"></label><label class="range-setting"><span><strong>Шрифт</strong></span><select name="fontFamily">${textFonts.map(({id:v,label:l})=>`<option value="${v}" ${draft.fontFamily===v?"selected":""}>${l}</option>`).join("")}</select></label><label class="range-setting"><span><strong>Межстрочный интервал</strong></span><output id="line-height-value">${draft.lineHeight}</output><input name="lineHeight" type="range" min="1.2" max="2.4" step="0.1" value="${draft.lineHeight}" aria-label="Межстрочный интервал"></label><div class="font-preview poem-text">Мороз и солнце; день чудесный!</div>${settingsFooter()}</section>`
     }</form></div>`;
 }
 function settingsFooter() {
@@ -459,6 +447,7 @@ function bind() {
           input.checked;
       }),
   );
+  bindThemePicker(draft, () => appearance(draft));
   document.querySelectorAll<HTMLInputElement>('[name="theme"]').forEach(
     (input) =>
       (input.onchange = () => {
